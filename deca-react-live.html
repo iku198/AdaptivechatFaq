@@ -1,0 +1,851 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DECA for LINE（LIBERO）サポート — AdaptiveWeb × 実Einstein（Sandbox）</title>
+<script>(function(){try{var p=new URLSearchParams(location.search);window.__LIFF=(p.get('liff')==='1');window.__EMBED=(p.get('embed')==='1');window.__UID=p.get('uid')||'';window.__ENDPOINT=p.get('endpoint')||'';if(window.__LIFF)document.documentElement.classList.add('liff');if(window.__EMBED)document.documentElement.classList.add('embed');}catch(e){}})();</script>
+<style>
+  :root{--violet:#4a28b4;--violet-d:#371d8a;--ink:#1f1740;--line:#ece7f8;--bg:#f6f4fb;--ok:#1a9e5e;--red:#e60028;--mut:#8a8f98}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:Roboto,"游ゴシック体",YuGothic,"Yu Gothic Medium",sans-serif;color:var(--ink);background:#fff}
+
+  /* ホスト（素のHTML） */
+  header.site{display:flex;align-items:center;gap:20px;padding:0 28px;height:60px;border-bottom:1px solid #f0f0f0}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:20px}
+  .brand .mk{width:18px;height:22px;background:var(--red);transform:skewX(-10deg)}
+  .brand .sb{margin-left:8px;padding:3px 9px;background:#4a28b4;color:#fff;border-radius:3px;font-size:10px;font-weight:800;letter-spacing:.5px}
+  nav.site{display:flex;gap:22px;font-size:13px;font-weight:600;color:#333}
+  .hero{padding:48px 40px 20px}.hero h1{font-size:52px;font-weight:800;margin:0 0 14px}
+  .hero p{font-size:14px;line-height:2;max-width:620px;color:#444}
+  .kb{display:flex;gap:14px;flex-wrap:wrap;padding:8px 40px 40px}
+  .kb .c{flex:1 1 200px;border:1px solid #eee;border-radius:8px;padding:18px}
+  .kb .c b{font-size:14px}.kb .c p{font-size:12px;color:#777;margin:6px 0 0}
+
+  .launcher{position:fixed;right:26px;bottom:26px;z-index:30;display:flex;align-items:center;gap:10px;background:#fff;color:var(--violet);border:2px solid var(--violet);border-radius:999px;padding:13px 20px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 10px 30px rgba(74,40,180,.25)}
+  .launcher:hover{background:#f3effc}
+  /* 埋め込み(widget)モード：ホスト非表示・透過。launcher/panelは隅に */
+  html.embed, html.embed body{background:transparent !important}
+  html.embed header.site, html.embed .hero, html.embed .kb{display:none !important}
+  html.embed .launcher{right:10px;bottom:10px}
+  html.embed .panel{inset:0;right:0;bottom:0;width:100%;height:100%;max-width:none;max-height:none;border-radius:0}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+  .launcher{animation:bob 2.6s ease-in-out infinite}
+  .launcher:hover{animation-play-state:paused}
+  .bub.load{display:flex;align-items:center;gap:10px;color:#5b5570;font-weight:600}
+  .spin{width:15px;height:15px;border:2.5px solid #ddd6f3;border-top-color:var(--violet);border-radius:50%;display:inline-block;animation:spin .75s linear infinite;flex:0 0 auto}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .panel{position:fixed;right:26px;bottom:26px;z-index:31;width:460px;max-width:calc(100vw - 32px);height:660px;max-height:calc(100vh - 40px);background:#fff;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 70px rgba(20,16,40,.35);animation:rise .25s ease;transition:width .3s cubic-bezier(.4,0,.2,1),height .3s cubic-bezier(.4,0,.2,1),right .3s cubic-bezier(.4,0,.2,1),bottom .3s cubic-bezier(.4,0,.2,1)}
+  @keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+  .pHd{display:flex;align-items:center;gap:11px;padding:13px 15px;background:#fff;color:var(--violet);border-bottom:1px solid #ece7f8}
+  .pHd .av{width:34px;height:34px;border-radius:50%;background:#fff;color:var(--violet);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px}
+  .pHd .t{font-weight:800;font-size:14px;line-height:1.2}.pHd .s{font-size:11px;opacity:.85}
+  .pHd .live{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;background:rgba(255,255,255,.16);padding:4px 9px;border-radius:999px}
+  .pHd .dot{width:7px;height:7px;border-radius:50%;background:#46e08a;animation:pulse 1.6s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(70,224,138,.6)}70%{box-shadow:0 0 0 7px rgba(70,224,138,0)}100%{box-shadow:0 0 0 0 rgba(70,224,138,0)}}
+  .pHd .x{margin-left:8px;border:none;background:#f0eef9;color:var(--violet);border-radius:8px;width:28px;height:28px;font-size:15px;cursor:pointer}
+  .pHd .x:hover{background:#e6e0f7}
+
+  .thread{flex:1;overflow-y:auto;padding:16px 14px 8px;background:#fafafe;display:flex;flex-direction:column;gap:9px}
+  .day{align-self:center;font-size:11px;color:var(--mut);margin-bottom:2px}
+  .row{display:flex;gap:8px;align-items:flex-end;max-width:100%}
+  .row.bot{align-self:flex-start}.row.me{align-self:flex-end;flex-direction:row-reverse}
+  .row .av{width:26px;height:26px;border-radius:50%;background:var(--violet);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;flex:0 0 auto}
+  .row.me .av{background:#cdd2db;color:#555}
+  .bub{padding:11px 14px;border-radius:14px;font-size:13.5px;line-height:1.65;max-width:280px;white-space:pre-wrap;word-break:break-word;animation:pop .22s ease}
+  .row.bot .bub{background:#eef0f4;color:#1f2330;border-bottom-left-radius:4px}
+  .row.me .bub{background:var(--violet);color:#fff;border-bottom-right-radius:4px}
+  .bub a{color:inherit;text-decoration:underline}
+  .bub.load{max-width:calc(100% - 34px);line-height:1.7}
+  .bub.load .elapsed{color:#8a78c8;font-weight:700;white-space:nowrap}
+  @keyframes pop{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+  .chips{display:flex;flex-wrap:wrap;gap:7px;padding:2px 4px 4px 38px}
+  .chips .lbl{flex-basis:100%;font-size:11px;color:var(--mut);margin-bottom:1px}
+  .chip{border:1.5px solid var(--violet);color:var(--violet);background:#fff;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;line-height:1.3;text-align:left}
+  .chip:hover{background:var(--violet);color:#fff}
+
+  .typing .bub{display:flex;gap:4px;padding:13px 14px}
+  .typing i{width:7px;height:7px;border-radius:50%;background:#b9bdc9;display:inline-block;animation:bl 1s infinite}
+  .typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+  @keyframes bl{0%,60%,100%{opacity:.3}30%{opacity:1}}
+
+  .composer{border-top:1px solid #eee;padding:10px 12px;display:flex;gap:9px;align-items:flex-end;background:#fff}
+  .composer textarea{flex:1;border:1.5px solid #e0e0e8;border-radius:18px;padding:10px 14px;font-size:14px;font-family:inherit;resize:none;max-height:90px;line-height:1.4}
+  .composer textarea:focus{outline:none;border-color:var(--violet)}
+  .composer .snd{width:40px;height:40px;border-radius:50%;border:none;background:var(--violet);color:#fff;font-size:17px;cursor:pointer;flex:0 0 auto}
+  .composer .snd:disabled{background:#cdd2db;cursor:default}
+  .err{margin:8px 14px;padding:9px 12px;background:#fff5f5;border:1px solid #ffd9d9;color:#b3001f;border-radius:8px;font-size:12px;white-space:pre-wrap}
+  .boot{margin:auto;text-align:center;color:var(--mut);font-size:12.5px;padding:20px}
+  /* ===== 拡張：既存Adaptiveの appTwoColumnFullscreen に寄せた2カラムオーバーレイ ===== */
+  .backdrop{position:fixed;inset:0;background:rgba(20,16,40,.45);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);z-index:30;animation:fade .2s ease}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .panel.expanded{right:0;bottom:0;width:100vw;height:100vh;max-width:none;max-height:none;border-radius:0;box-shadow:none}
+  .panel.expanded .article{max-width:920px}
+  .bodyRow{flex:1;display:flex;min-height:0}
+  .leftcol{display:flex;flex-direction:column;min-height:0;flex:1 1 auto;min-width:0}
+  .panel.expanded .leftcol{flex:0 0 392px;border-right:1px solid #e9e9f0}
+  .answerPane{flex:1;min-width:0;display:none;flex-direction:column;background:#f6f7f9;overflow:hidden}
+  .panel.expanded .answerPane{display:flex;animation:pop .3s ease}
+  /* FAQサイト風記事 */
+  .faqHd{display:flex;align-items:center;gap:7px;padding:13px 26px;background:#fff;border-bottom:1px solid #ededf0;font-size:12px;color:#9a9aa5;flex:0 0 auto}
+  .faqHd b{color:var(--violet);font-weight:700}
+  .faqHd .tag{margin-left:auto;font-size:10.5px;font-weight:800;color:#fff;background:var(--violet);padding:4px 11px;letter-spacing:.3px}
+  .faqBody{flex:1;overflow:auto;padding:30px 30px 50px}
+  .article{max-width:780px;margin:0 auto;background:#fff;border:1px solid #ececf2;padding:32px 38px 38px;box-shadow:0 10px 28px rgba(0,0,0,.06)}
+  .article h2{margin:0 0 8px;font-size:25px;font-weight:800;line-height:1.45;color:var(--ink)}
+  .article .meta{font-size:12px;color:#9a9aa5;border-bottom:1px solid #f0f0f4;padding-bottom:15px;margin-bottom:20px;display:flex;gap:8px;align-items:center}
+  .article .meta .pill{background:#f3effc;color:var(--violet);font-weight:800;padding:2px 9px}
+  .article p{font-size:15px;line-height:2;color:#33384a;margin:0 0 16px;white-space:pre-wrap}
+  .article ol{margin:8px 0 20px;padding:0;list-style:none;counter-reset:s}
+  .article ol li{position:relative;padding:3px 0 16px 42px;counter-increment:s;font-size:15px;line-height:1.85;color:#33384a}
+  .article ol li::before{content:counter(s);position:absolute;left:0;top:0;width:28px;height:28px;background:var(--violet);color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .article ol li:not(:last-child)::after{content:"";position:absolute;left:13.5px;top:30px;bottom:2px;width:1.5px;background:var(--line)}
+  .article .src{display:inline-flex;align-items:center;gap:8px;margin-top:6px;padding:12px 18px;background:var(--violet);color:#fff;font-size:13px;font-weight:800;text-decoration:none}
+  .article .src:hover{filter:brightness(1.1)}
+  .article .lead{background:#f3effc;border:1px solid #e2d8f7;border-left:4px solid var(--violet);padding:14px 18px;margin:0 0 20px}
+  .article .lead .leadlbl{display:block;font-size:12px;font-weight:800;color:var(--violet);margin-bottom:6px}
+  .article .lead .leadtx{font-size:15.5px;line-height:1.85;color:#2a2150;font-weight:600}
+  .article .detlbl{font-size:12px;font-weight:800;color:#9a9aa5;letter-spacing:.5px;border-bottom:1px solid #eee;padding-bottom:6px;margin:8px 0 14px}
+  .detloading{display:flex;align-items:center;gap:9px;color:#9a9aa5;font-size:13px;padding:4px 0 10px}
+  .detloading .dspin{width:15px;height:15px;border:2px solid #e3dbf7;border-top-color:#7a4ddb;border-radius:50%;display:inline-block;animation:spin .8s linear infinite}
+  .article .mdp{font-size:15px;line-height:2;color:#33384a;margin:0 0 14px}
+  .article .mdh{font-size:18.5px;font-weight:800;color:var(--ink);margin:24px 0 10px;padding-left:11px;border-left:4px solid var(--violet);line-height:1.5}
+  .article .srcbox{margin:22px 0 6px;padding:14px 16px;background:#faf8ff;border:1px solid #e7ddfa;border-radius:12px}
+  .article .srchd{font-size:12.5px;font-weight:800;color:#6a4bd0;margin-bottom:10px}
+  .article .srcrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:5px 0}
+  .article .srctitle{font-size:13.5px;color:#33384a;flex:1;min-width:0}
+  .article .srctitle a{color:#4a28b4;font-weight:700;text-decoration:none}
+  .article .srctitle a:hover{text-decoration:underline}
+  .article .srcrel{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+  .article .srcbar{width:84px;height:7px;background:#e7ddfa;border-radius:99px;overflow:hidden}
+  .article .srcfill{height:100%;background:linear-gradient(90deg,#7a4ddb,#4a28b4);border-radius:99px}
+  .article .srcpct{font-size:12px;font-weight:800;color:#4a28b4;min-width:34px;text-align:right}
+  .article ul.mdul{margin:8px 0 16px;padding-left:22px;list-style:disc}
+  .article ul.mdul li{font-size:15px;line-height:1.85;color:#33384a;margin-bottom:7px}
+  .article .mdimg{max-width:100%;height:auto;display:block;margin:10px 0 18px;border:1px solid #eaeaf0;border-radius:6px}
+  .article .srcline{font-size:13px;color:#6b7280;margin:18px 0 0;word-break:break-all}
+  .article .srcline a{color:var(--violet);font-weight:700}
+  .article .fb{margin-top:22px;padding-top:16px;border-top:1px solid #f0f0f4;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .article .fb .fbq{font-size:13px;font-weight:700;color:#555}
+  .article .fbtn{border:1.5px solid #d3d8e2;background:#fff;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;color:#444}
+  .article .fbtn.up:hover{border-color:var(--ok);color:var(--ok)}
+  .article .fbtn.down:hover{border-color:var(--red);color:var(--red)}
+  .article .fbthx{font-size:13px;font-weight:800;color:var(--ok)}
+  .faqEmpty{margin:auto;text-align:center;color:#9a9aa5;font-size:13.5px;line-height:2;padding:40px}
+  .faqEmpty .big{font-size:40px;opacity:.4;display:block;margin-bottom:8px}
+  .pHd .exp{margin-left:8px;border:none;background:#f0eef9;color:var(--violet);height:28px;padding:0 11px;font-size:11px;font-weight:700;cursor:pointer}
+  .pHd .exp:hover{background:#e6e0f7}
+  /* ===== カクカク（角丸ゼロ）＆ DECAロゴ・アバター ===== */
+  .panel,.chip,.launcher,.composer textarea,.composer .snd,
+  .pHd .av,.row .av,.pHd .x,.pHd .exp,.pHd .live,.pHd .dot,.answerPane .ah .tag,.err,.kb .c,.brand .sb{border-radius:0 !important}
+  /* チャットバブルは角丸でスムーズに */
+  .bub{border-radius:14px !important}
+  .row.bot .bub{border-bottom-left-radius:4px !important}
+  .row.me .bub{border-bottom-right-radius:4px !important}
+  .av.logo{background:transparent !important;padding:0;overflow:hidden}
+  .av.logo svg{display:block;width:100%;height:100%}
+  #fatal{display:none;position:fixed;left:0;right:0;bottom:0;z-index:99;background:#b3001f;color:#fff;font:12px/1.5 monospace;padding:10px 14px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+  <!-- ホストは素のHTML（Reactが落ちても表示される） -->
+  <header class="site">
+    <div class="brand"><span class="mk"></span>Givery <span class="sb">DECA SUPPORT · SANDBOX</span></div>
+    <nav class="site"><a>製品</a><a>料金</a><a>導入事例</a><a>ヘルプセンター</a><a>お問い合わせ</a></nav>
+  </header>
+  <section class="hero">
+    <h1>DECA for LINE（LIBERO）</h1>
+    <p>LINE公式アカウントの配信・友だち獲得・分析を、ひとつの管理画面で。お困りの際は右下のサポートチャットからAIエージェントにご相談ください。</p>
+  </section>
+  <div class="kb">
+    <div class="c"><b>配信</b><p>予約配信・セグメント配信・リッチメニュー</p></div>
+    <div class="c"><b>集客</b><p>友だち追加経路・あいさつメッセージ</p></div>
+    <div class="c"><b>分析</b><p>配信レポート・開封率・CSV出力</p></div>
+    <div class="c"><b>アカウント</b><p>ログイン・権限・連携設定</p></div>
+  </div>
+
+  <div id="aw-root"></div>
+  <div id="fatal"></div>
+
+<script>
+  // 致命的エラーを画面下部に可視化
+  window.onerror = function(m,src,l,c){ var f=document.getElementById('fatal'); if(f){f.style.display='block'; f.textContent += '\nJS ERROR: '+m+' @'+l+':'+c;} };
+</script>
+<script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.25.9/babel.min.js"></script>
+<script src="articles.js"></script>
+<script type="text/babel" data-presets="react">
+const {useState,useRef,useEffect,useCallback} = React;
+
+const SCRT = "https://givery--scpartial.sandbox.my.salesforce-scrt.com";
+const ORG  = "00Dfc000000hLIv";
+const ES   = "DECA_AI_API";
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
+  : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c==='x'?r:(r&0x3|0x8)).toString(16);}));
+
+async function getToken(){
+  const r = await fetch(SCRT+"/iamessage/api/v2/authorization/unauthenticated/access-token",{
+    method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({orgId:ORG,esDeveloperName:ES,capabilitiesVersion:"1",platform:"Web"})});
+  if(!r.ok) throw new Error("token "+r.status+" "+await r.text());
+  return (await r.json()).accessToken;
+}
+async function createConversation(token,convId){
+  const r = await fetch(SCRT+"/iamessage/api/v2/conversation",{
+    method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+    body:JSON.stringify({conversationId:convId,esDeveloperName:ES})});
+  if(!r.ok && r.status!==201) throw new Error("conv "+r.status+" "+await r.text());
+}
+async function sendTextApi(token,convId,text){
+  await fetch(SCRT+"/iamessage/api/v2/conversation/"+convId+"/message",{
+    method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+    body:JSON.stringify({message:{id:uuid(),messageType:"StaticContentMessage",
+      staticContent:{formatType:"Text",text:text}},esDeveloperName:ES,isNewMessagingSession:false})});
+}
+
+// ===== Web検索のスタブ（検索バックエンドは差し替え可。LIBERO FAQ で代用） =====
+// LIBERO_問い合わせ集計_ナレッジ（実問い合わせ内容）に基づくFAQ（顧客名等のPIIは一般化）
+const WEBFAQ=[
+  {kw:["シナリオ","配信","対話ノード","ラベル","流入","オートコール","ステップ","出し分け","カスタムコード"],title:"シナリオ配信の設定",
+   body:"1. 「シナリオ配信」→「新規シナリオ」から対話フローを作成します\n2. 各ノードでメッセージ・分岐・カスタム項目の出力（対話ノードのカスタムコード）を設定します\n3. 友だちの流入経路・会話ラベルを条件に出し分け（条件分岐）を設定します\n4. オートコール等のトリガーや有人チャット切替を設定し、公開します",src:"https://libero-support.zendesk.com/hc/ja/"},
+  {kw:["セグメント","配信対象","オーディエンス","ラベル","一括付与","user_id","予約","無効なID","絞り"],title:"セグメント・配信対象（オーディエンス）の作成",
+   body:"1. 「オーディエンス」→「新規作成」で配信対象を作成します（属性・ラベル・流入経路で絞り込み）\n2. ラベルを一括付与する場合、CSVのヘッダー1列目を user_id にしてアップロードします（「ヘッダーの1列目が user_id ではありません」エラーの回避）\n3. 同名店舗などはラベル／条件を分けて重複を回避します\n4. 配信予約が反映されない場合は、予約一覧と対象人数をご確認ください",src:"https://libero-support.zendesk.com/hc/ja/"},
+  {kw:["リッチメニュー","メニュー","切替","タブ"],title:"リッチメニューの作成・切替",
+   body:"1. 「リッチメニュー」→「新規作成」でテンプレートを選び、各エリアに画像とアクションを設定します\n2. シナリオと連動させる場合は、アクションに対話シナリオを割り当てます\n3. 表示期間を指定して公開すると、期間に応じて自動で切り替わります",src:"https://libero-support.zendesk.com/hc/ja/"},
+  {kw:["メッセージ","配信","ユーザーネーム","差し込み","埋め込み","リンク","クリック","予約配信"],title:"メッセージ作成・配信",
+   body:"1. 新配信メッセージのテキストに、ユーザーネーム等のカスタム項目を差し込みできます（差し込みタグを挿入）\n2. 配信後は、メッセージ内リンクのクリック数を分析画面で計測できます\n3. 予約配信は配信日時で「予約」を指定して確定します",src:"https://libero-support.zendesk.com/hc/ja/"},
+  {kw:["ユーザー","権限","アカウント","ログイン","招待","パスワード","認証"],title:"ユーザー・権限・アカウント",
+   body:"1. 「設定」→「ユーザー管理」からメンバーを招待し、権限（管理者／担当者）を割り当てます\n2. ログインできない場合は「パスワードをお忘れの方」から再設定します\n3. 権限不足で操作できない場合は、管理者に権限付与をご依頼ください",src:"https://libero-support.zendesk.com/hc/ja/"},
+  {kw:["不具合","エラー","配信されない","重い","表示されない","会員証","動作","障害"],title:"配信の不具合・エラー",
+   body:"1. 動作が重い・表示されない場合は、ブラウザのキャッシュ削除・再ログインをお試しください\n2. 配信されない場合は、配信予約・対象人数・ラベル条件をご確認ください\n3. 解消しない場合は、発生日時・画面・エラーメッセージを添えてサポートへご連絡ください",src:"https://libero-support.zendesk.com/hc/ja/"},
+];
+function searchWeb(q){
+  q=String(q||"").toLowerCase(); let best=null,sc=0;
+  WEBFAQ.forEach(f=>{let s=0;f.kw.forEach(k=>{if(q.indexOf(k.toLowerCase())>=0)s+=k.length>=3?2:1;});if(s>sc){sc=s;best=f;}});
+  if(!best) best=WEBFAQ[0];
+  return "【"+best.title+"】\n"+best.body+"\n\n参考: "+best.src;
+}
+
+// 実ロゴ（PNG/SVG/データURI）があればここに入れると差し替わる。空ならワードマークSVG。
+const LOGO_SRC = "DECA_x.png";
+function Logo(){
+  if(LOGO_SRC) return <img src={LOGO_SRC} alt="DECA" style={{width:'100%',height:'100%',objectFit:'contain',display:'block',background:'#fff'}}/>;
+  // DECAロゴ（積層X）をSVGで再現。実ロゴは LOGO_SRC に差し替え可
+  return (
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <g fill="none" strokeWidth="18" strokeLinecap="butt">
+        <g stroke="#e8208e" transform="translate(-6,0)"><path d="M26 18 L80 82"/><path d="M80 18 L26 82"/></g>
+        <g stroke="#37b5ea" transform="translate(6,0)"><path d="M26 18 L80 82"/><path d="M80 18 L26 82"/></g>
+        <g stroke="#1d1c8c"><path d="M26 18 L80 82"/><path d="M80 18 L26 82"/></g>
+      </g>
+    </svg>
+  );
+}
+
+// 初めから出す「お困りごと」の候補
+// シンプルな単色の人型アイコン（グラデ無し）
+function UserIcon(){
+  return (<svg viewBox="0 0 24 24" width="62%" height="62%" fill="#6b7280" style={{display:'block'}}>
+    <circle cx="12" cy="8" r="3.7"></circle><path d="M5 19c0-3.4 3.1-5.3 7-5.3s7 1.9 7 5.3z"></path></svg>);
+}
+
+// LIBERO_問い合わせ集計_ナレッジ（カテゴリ別集計）の上位カテゴリに基づくお困りごと
+const STARTERS = ["オーディエンス（配信対象）の作成方法を知りたい","リッチメニューの設定方法を知りたい","メッセージの配信方法を知りたい","LINE公式アカウントとの接続方法を知りたい","テスト配信のやり方を知りたい"];
+// 曖昧なエラー報告のときに提示する深掘り候補
+const DIG=["配信メッセージが届かない","管理画面にログインできない","リッチメニューが表示されない","ステップ配信が動かない","エラーメッセージが表示される"];
+// 記事タイトル →「〜が分からない」調のお困りごと表現に変換
+function toTrouble(title){
+  let t=String(title||"").replace(/^【[^】]*】/,"").trim().replace(/[。\s]+$/,"");
+  if(!t) return "";
+  t=t.replace(/(について|とは)$/,"");
+  // 「〜がしたい/〜したい」→「〜のやり方がわからない」
+  let m=t.match(/^(.*?)(?:が|を)?(?:し|やり)たい$/);
+  if(m && m[1]) return m[1].replace(/[をが]$/,"")+"のやり方がわからない";
+  // 説明系（違い・特徴・注意点・料金など）→「〜について知りたい」
+  if(/(違い|特徴|注意点|まとめ|一覧|概要|仕様|率|料金|機能|とは|について)$/.test(t)) return t+"について知りたい";
+  // 動詞で終わる手順系 →「〜方法がわからない」
+  if(/(る|す|う|く|つ|ぶ|む|ぐ)$/.test(t)) return t+"方法がわからない";
+  return t+"について知りたい";
+}
+
+// 回答テキストをFAQ記事（タイトル/本文/手順/出典）にパース
+function parseArticle(raw){
+  let web=false, text=String(raw||"");
+  if(/^🔎\s*Web検索結果です/.test(text)){ web=true; text=text.replace(/^🔎\s*Web検索結果です\s*/,"").trim(); }
+  let title="", source="";
+  const mt = text.match(/【(.+?)】/); if(mt){ title=mt[1]; text=text.replace(mt[0],"").trim(); }
+  const steps=[], intro=[];
+  text.split(/\n/).map(s=>s.trim()).filter(Boolean).forEach(l=>{
+    const sm = l.match(/^\d+[\.\)]\s*(.+)/);
+    const src = l.match(/https?:\/\/[^\s]+/);
+    if(sm){ steps.push(sm[1]); }
+    else if(src){ source=src[0]; }
+    else { intro.push(l); }
+  });
+  if(!title){ title = intro.length ? intro[0].replace(/[。:：].*$/,"").slice(0,42) : (steps.length?"ご案内":"回答"); if(intro.length) intro.shift(); }
+  return {web, title, intro:intro.join("\n"), steps, source};
+}
+
+// 簡易マークダウン（**太字** / リンク / 見出し / 箇条書き / 番号付き / 段落）
+function mdInline(s){
+  const parts=[]; let rest=String(s); let key=0;
+  const re=/(\*\*([^*]+)\*\*)|(https?:\/\/[^\s）)]+)/;
+  for(;;){ const m=rest.match(re); if(!m){ parts.push(rest.replace(/[*_`]/g,"")); break; }
+    if(m.index>0) parts.push(rest.slice(0,m.index).replace(/[*_`]/g,""));
+    if(m[2]!==undefined) parts.push(React.createElement('strong',{key:key++},m[2]));
+    else parts.push(React.createElement('a',{key:key++,href:m[3],target:'_blank',rel:'noopener'},m[3]));
+    rest=rest.slice(m.index+m[0].length);
+  }
+  return parts;
+}
+function Markdown({text}){
+  const lines=String(text||"").split(/\n/); const out=[]; let i=0;
+  const isList=t=>/^[\*\-・･]\s?/.test(t), isNum=t=>/^\d+[\.\)]\s/.test(t), isH=t=>/^#{1,4}\s/.test(t);
+  const isImg=t=>/^!\[[^\]]*\]\(https?:\/\//.test(t);
+  while(i<lines.length){
+    const t=lines[i].trim();
+    if(!t){ i++; continue; }
+    if(isImg(t)){ const im=t.match(/\((https?:\/\/[^)\s]+)\)/); if(im){ out.push(React.createElement('img',{key:i,src:im[1],alt:'',className:'mdimg',loading:'lazy'})); } i++; continue; }
+    if(isH(t)){ out.push(React.createElement('h3',{key:i,className:'mdh'},mdInline(t.replace(/^#{1,4}\s/,'')))); i++; continue; }
+    if(isNum(t)){ const it=[]; while(i<lines.length&&isNum(lines[i].trim())){ it.push(lines[i].trim().replace(/^\d+[\.\)]\s/,'')); i++; }
+      if(it.length>=2) out.push(React.createElement('ol',{key:i},it.map((x,k)=>React.createElement('li',{key:k},mdInline(x)))));
+      else out.push(React.createElement('ul',{key:i,className:'mdul'},React.createElement('li',{key:0},mdInline(it[0]))));  // 単独の番号は●に
+      continue; }
+    if(isList(t)){ const it=[]; while(i<lines.length&&isList(lines[i].trim())){ it.push(lines[i].trim().replace(/^[\*\-・･]\s?/,'')); i++; }
+      out.push(React.createElement('ul',{key:i,className:'mdul'},it.map((x,k)=>React.createElement('li',{key:k},mdInline(x))))); continue; }
+    const para=[]; while(i<lines.length){ const u=lines[i].trim(); if(!u||isH(u)||isNum(u)||isList(u)||isImg(u)) break; para.push(u); i++; }
+    out.push(React.createElement('p',{key:i,className:'mdp'},mdInline(para.join(' '))));
+  }
+  return React.createElement('div',null,out);
+}
+
+// 公式ヘルプ記事（articles.js = window.__DECA_ARTICLES）からのキーワード検索
+const KEYWORDS=["シナリオ","配信","予約","予約配信","セグメント","オーディエンス","配信対象","リッチメニュー","メニュー","ログイン","ユーザー","権限","アカウント","招待","エラー","不具合","レポート","分析","友だち","ラベル","ステップ","ステップ配信","有人チャット","チャット","流入","経路","カスタム","メッセージ","設定","プラン","料金","契約","連携","CSV","API","コンバージョン","一問一答","会員証","差し込み","クリック","開封","アンケート"];
+function searchArticles(query){
+  const arts=(typeof window!=="undefined" && window.__DECA_ARTICLES) || [];
+  if(!arts.length) return null;
+  const q=String(query||"");
+  const terms=KEYWORDS.filter(k=>q.indexOf(k)>=0);
+  let best=null,sc=0;
+  arts.forEach(a=>{
+    let s=0;
+    terms.forEach(t=>{ if((a.title||"").indexOf(t)>=0) s+=3; if((a.body||"").indexOf(t)>=0) s+=1; });
+    if(a.title && q.length>=4 && q.indexOf(a.title)>=0) s+=6;
+    if(s>sc){sc=s;best=a;}
+  });
+  return sc>=3 ? best : null;
+}
+// 上位N件の関連記事（参考リンク用）
+function searchArticlesTop(query,n){
+  const arts=(typeof window!=="undefined" && window.__DECA_ARTICLES) || [];
+  const q=String(query||""); const terms=KEYWORDS.filter(k=>q.indexOf(k)>=0);
+  const scored=arts.map(a=>{ let s=0; terms.forEach(t=>{ if((a.title||"").indexOf(t)>=0)s+=3; if((a.body||"").indexOf(t)>=0)s+=1; }); if(a.title&&q.length>=4&&q.indexOf(a.title)>=0)s+=6; return {a:a,s:s}; });
+  return scored.filter(x=>x.s>=2).sort((x,y)=>y.s-x.s).slice(0,n).map(x=>x.a);
+}
+
+// 記事本文を読みやすく整形（中黒を箇条書き行に・注意書き分離・区切り線除去・長文を文単位に）
+function cleanBody(s){
+  let t=String(s||"");
+  t=t.replace(/[\-—─ー]{4,}/g,"\n");                  // 区切り線を除去
+  t=t.replace(/【([^】]+)】/g,"\n\n## $1\n");          // 【見出し】→ 小見出し
+  t=t.replace(/(^|\n)\s*目次\s*(?=\n)/g,"\n");          // 目次ラベル除去
+  t=t.replace(/\s*[･・]\s*/g,"\n- ");                  // 中黒 → 箇条書き
+  t=t.replace(/\s*※\s*/g,"\n\n※ ");                    // 注意書きを段落に
+  t=t.replace(/([。！？])\s*(?=\S)/g,"$1\n");           // 文末で改行
+  t=t.replace(/[ \t　]{2,}/g," ");
+  t=t.replace(/\n{3,}/g,"\n\n").replace(/^\s+/,"").trim();
+  return t;
+}
+
+// LLMが1行に詰め込んだ ##見出し / 1. 手順 / - 箇条書き を行頭へ分解（Markdownを正しく描画させる）
+function normalizeMd(t){
+  let s=String(t||"").replace(/\r/g,"");
+  s=s.replace(/[ \t　]*(#{2,4})[ \t]+/g,"\n\n$1 ");              // 見出しを独立行＋前空行
+  s=s.replace(/(#{2,4} [^\n。]{1,40}?。)[ \t　]*(?=\S)/g,"$1\n"); // 見出しが長文を巻き込んだら最初の句点で改行
+  s=s.replace(/([^\n])[ \t　]+(-[ \t])/g,"$1\n$2");              // 文中の「- 」箇条書きを改行
+  s=s.replace(/([^\n0-9])[ \t　]*(\d{1,2}\.[ \t])/g,"$1\n$2");   // 文中の「N. 」番号付きを改行
+  s=s.replace(/[ \t　]+\n/g,"\n").replace(/\n{3,}/g,"\n\n").replace(/^\n+/,"").trim();
+  return s;
+}
+// 本文から要約（冒頭の結論）を抽出：最初の見出し/箇条書きでない段落の先頭1〜2文
+function deriveLead(body){
+  const lines=String(body||"").split(/\n/);
+  for(let k=0;k<lines.length;k++){
+    const t=lines[k].trim();
+    if(!t || /^#{1,4}\s/.test(t) || /^[\*\-・･]\s?/.test(t) || /^\d+[\.\)]\s/.test(t) || /[?？]$/.test(t)) continue;
+    const m=t.match(/^[\s\S]*?[。！？][\s\S]*?[。！？]/) || t.match(/^[\s\S]*?[。！？]/);
+    return (m?m[0]:t).replace(/\s+/g,"").slice(0,180).trim();
+  }
+  return String(body||"").replace(/\s+/g," ").slice(0,120).trim();
+}
+
+// 末尾の不完全な文を除去（見切れ防止）
+function trimToSentence(t){
+  t=String(t||"").trim(); if(!t) return t;
+  if(/[。！？!?」』）)\]：:\-・>\n]$/.test(t)) return t;
+  const m=t.match(/^[\s\S]*[。！？!?」』）)\]]/);
+  return (m && m[0].length>=Math.floor(t.length*0.4)) ? m[0] : t;
+}
+
+// スコープ判定：LINE/DECA関連か（他社プロダクトが含まれる場合は対象外）
+const FOREIGN=/(google ?meet|google ?form|zoom|slack|gmail|excel|spread ?sheet|teams|salesforce|chatwork|outlook|notion|youtube|instagram|facebook|tiktok|twitter|wordpress|shopify|インスタ|フェイス ?ブック|ツイッター|ツイート|ティックトック|ユーチューブ|ズーム|スラック|チャットワーク|グーグル|エクセル|スプレッドシート|ワードプレス|ショッピファイ|ノーション)/i;
+const LINETERMS=["line","ライン","deca","libero","リベロ","公式アカウント","友だち","友達","配信","メッセージ","リッチメニュー","メニュー","セグメント","シナリオ","ステップ","オーディエンス","ラベル","有人チャット","チャット","流入","経路","コンバージョン","一問一答","トーク","会員証","予約配信","配信対象","アンケート","ログイン","ユーザー","権限","アカウント","レポート","分析","設定","管理画面","プラン","料金"];
+// サポート文脈：他社プロダクトが明示されていない限り in-scope（あいさつ/メタ/雑談は手前で判定済み）
+function isLineRelated(q){ return !FOREIGN.test(String(q||"").toLowerCase()); }
+// 曖昧なトラブル（具体機能が無いエラー報告）→ 深掘りして関連候補を提示
+function isVagueTrouble(q){
+  const t=String(q||"");
+  const trouble=/(エラー|えらー|不具合|動かない|うごかない|出来ない|できない|おかしい|表示されない|届かない|失敗|問題|困っ|バグ)/.test(t);
+  const specific=/(シナリオ|リッチメニュー|セグメント|オーディエンス|配信|ステップ|ログイン|レポート|分析|ラベル|友だち|メッセージ|ユーザー|権限|予約|流入|一問一答|有人)/.test(t);
+  return trouble && !specific && t.length<=16;
+}
+// 契約・手続き・セールス系 → フォーム提示
+function isSales(q){ return /(解約|退会|契約|料金|価格|費用|見積|お見積|プラン変更|プランの変更|申込|申し込み|導入したい|購入|支払|請求|アップグレード|オプション追加|乗り換え|商談|営業)/.test(String(q||"")); }
+
+// 入力のヒューリスティック分類（あいさつ/お礼/雑談/曖昧 は検索せず会話で返す）
+function classifyInput(s){
+  const t=String(s||"").trim().toLowerCase();
+  if(/^(こんにち|こんばん|おはよ|やあ|はじめまして|hi$|hi |hello|hey|よろし|どうも$|お疲れ)/.test(t)) return "greeting";
+  if(/(ありがとう|有難う|thank|助かりました|助かる|サンキュー)/.test(t)) return "thanks";
+  // メタ質問（ボット自身/サービス自体への問い）→ DECAサービス内容として検索
+  if(/(あなた|きみ|君|貴方|お前)(は|の|って|に)|得意|何ができ|なにができ|何者|誰です|機能は|どんな(こと|サービス|機能|ツール)|何のため|サービス(は|って|の概要|内容|について)|deca.*とは|libero.*とは|とは(何|なに|\?|？)/.test(t)) return "meta";
+  if(t.length<3) return "vague";
+  if(!/[ぁ-んァ-ヶー一-龠a-z0-9]/.test(t)) return "smalltalk";
+  // DECA関連でも疑問形でもない、ごく短い雑談的入力
+  if(t.length<6 && !/(配信|シナリオ|メニュー|ログイン|セグメント|ユーザー|権限|エラー|レポート|友だち|設定|方法|やり方|でき|どう|？|\?)/.test(t)) return "vague";
+  return "question";
+}
+
+// タイプライター表示（回答が生成されていく過程を演出）
+function Typewriter({text}){
+  const [n,setN]=useState(0);
+  useEffect(()=>{ setN(0); const s=String(text||""); if(!s) return; let i=0; const id=setInterval(()=>{ i+=2; setN(i); if(i>=s.length) clearInterval(id); }, 16); return ()=>clearInterval(id); },[text]);
+  return React.createElement(Markdown,{text:String(text||"").slice(0,n)});
+}
+
+function App(){
+  const [open,setOpen] = useState(false);
+  const [booted,setBooted] = useState(false);
+  const [msgs,setMsgs] = useState([]);
+  const [typing,setTyping] = useState(false);
+  const [input,setInput] = useState("");
+  const [err,setErr] = useState("");
+  const [expanded,setExpanded] = useState(false);
+  const [loading,setLoading] = useState("");   // 動的ローディング実況テキスト
+  const [elapsed,setElapsed] = useState(0);    // ローディングのリアルタイム経過秒
+  const [detElapsed,setDetElapsed] = useState(0);  // 詳細生成のリアルタイム経過秒
+  const [fbState,setFbState] = useState({});   // 回答フィードバック（id->値）
+  const [busy,setBusy] = useState(false);      // 処理中は連続送信を禁止
+  const tokenRef = useRef(null), convRef = useRef(null), seen = useRef(new Set()), sentText = useRef([]);
+  const offerRef = useRef(false), lastQ = useRef(""), aiStartedRef = useRef(false), pendingTopic = useRef(""), prevTopic = useRef("");
+  const bootedRef = useRef(false), readyRef = useRef(null), sseAbort = useRef(null), userActedRef = useRef(false), answering = useRef(false), sessionRef = useRef(""), elapsedTimer = useRef(null), detTimer = useRef(null);
+  const startDetTimer = ()=>{ if(detTimer.current) clearInterval(detTimer.current); setDetElapsed(0); const t0=Date.now(); detTimer.current=setInterval(()=>setDetElapsed(Math.floor((Date.now()-t0)/1000)),1000); };
+  const stopDetTimer = ()=>{ if(detTimer.current){ clearInterval(detTimer.current); detTimer.current=null; } };
+  // ローディング中はリアルタイムで経過秒をカウント（開始時点から累計）
+  useEffect(()=>{
+    if(loading){
+      if(!elapsedTimer.current){ setElapsed(0); const t0=Date.now(); elapsedTimer.current=setInterval(()=>setElapsed(Math.floor((Date.now()-t0)/1000)),1000); }
+    } else {
+      if(elapsedTimer.current){ clearInterval(elapsedTimer.current); elapsedTimer.current=null; }
+      setElapsed(0);
+    }
+  },[loading]);
+  const threadRef = useRef(null);
+
+  useEffect(()=>{ if(threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight; });
+  // 埋め込み時：開閉/拡張に応じて親(iframe)へサイズ通知
+  useEffect(()=>{ if(typeof window==="undefined"||!window.__EMBED||window.parent===window) return;
+    let w,h;
+    if(!open){ w=360; h=104; }
+    else if(expanded){ w=1280; h=920; }
+    else { w=496; h=720; }
+    try{ window.parent.postMessage({deca:'resize',open:open,expanded:expanded,w:w,h:h},'*'); }catch(e){}
+  },[open,expanded]);
+
+  const pushBot = (m)=> setMsgs(p=>p.concat([Object.assign({id:m.id||uuid(),from:'bot'},m)]));
+
+  const startSSE = useCallback(async (token)=>{
+    if(sseAbort.current){ try{sseAbort.current.abort();}catch(e){} }
+    const ctrl = new AbortController(); sseAbort.current = ctrl;
+    const res = await fetch(SCRT+"/eventrouter/v1/sse",{signal:ctrl.signal,headers:{
+      "Authorization":"Bearer "+token,"X-Org-Id":ORG,"Accept":"text/event-stream"}});
+    if(!res.ok || !res.body) throw new Error("sse "+res.status);
+    const reader = res.body.getReader(); const dec = new TextDecoder(); let buf="";
+    for(;;){
+      const out = await reader.read(); if(out.done) break;
+      buf += dec.decode(out.value,{stream:true});
+      let nl; while((nl=buf.indexOf("\n"))>=0){
+        const line = buf.slice(0,nl); buf = buf.slice(nl+1);
+        if(line.indexOf("data:")!==0) continue;
+        const p = line.slice(5).trim(); if(p.charAt(0)!=="{") continue;
+        try{ handleEvent(JSON.parse(p)); }catch(e){}
+      }
+    }
+  },[]);
+
+  function handleEvent(d){
+    const ce = d.conversationEntry; if(!ce) return;
+    const t = ce.entryType;
+    if(t==="TypingStartedIndicator"){ if(userActedRef.current) setTyping(true); return; }
+    if(t==="TypingStoppedIndicator"){ setTyping(false); return; }
+    if(t!=="Message") return;
+    let ep; try{ ep = JSON.parse(ce.entryPayload); }catch(e){ return; }
+    if(seen.current.has(ep.id)) return; seen.current.add(ep.id);
+    const am = ep.abstractMessage||{};
+    if(am.messageType==="StaticContentMessage"){
+      const text = (am.staticContent||{}).text||"";
+      const i = sentText.current.indexOf(text);
+      if(i>=0){ sentText.current.splice(i,1); return; }
+      if(!text.trim()) return;
+      setTyping(false);
+      // 起動時のEinstein定型あいさつ/メニュー案内は非表示（自前のお困りごとに置換）
+      if(!aiStartedRef.current && /(サポートチャットボットです|問い合わせ方法をご選択|問い合わせ方法を選択)/.test(text)) return;
+      // AIエージェントの定型あいさつは非表示。入室フラグを立て、保留中のお困りごとを送る
+      if(/AIエージェントです/.test(text)){
+        aiStartedRef.current = true;
+        if(pendingTopic.current){ const tp=pendingTopic.current; pendingTopic.current=""; postMsg(tp); }
+        return;
+      }
+      // 既にWeb検索の許可待ちなら、以降のBot発話（フォーム誘導・追質問）は抑制
+      if(offerRef.current) return;
+      // 回答不可（ナレッジ未ヒット）を検知 → ナレッジにない旨を伝え、Web検索の許可を尋ねる
+      if(/(ご案内することができません|ご案内できません|ご用意でき|お答えすることができません|お答えできません|見つかりませんでした|わかりかねます|回答できません|対応しておりません|問い合わせフォーム|フォームをご利用|フォームから)/.test(text)){
+        offerRef.current = true;
+        pushBot({text:"ただいまのご質問は、ナレッジ（FAQ）に該当する回答が見つかりませんでした。"});
+        pushBot({text:"Web検索で調べてもよろしいですか？", offer:true});
+        return;
+      }
+      pushBot({text:text});
+      // Agentforceが「回答」を出したタイミングで自動拡張（あいさつ・質問は除外）
+      const q = text.trim();
+      const isQuestion = /(でしょうか|教えてください|お聞かせ|いただけますか|ますか[?？]?$|ですか[?？]?$|[?？]$)/.test(q);
+      if(aiStartedRef.current && q.length>=46 && !isQuestion){ setExpanded(true); }
+    } else if(am.messageType==="ChoicesMessage"){
+      const ch = am.choices||{};
+      const choices = (ch.optionItems||[]).map(o=>({title:(o.titleItem||{}).title}));
+      setTyping(false);
+      const titles = choices.map(c=>c.title);
+      // 入口の3択メニューは非表示（自前のお困りごと＋その他に置換）
+      if(titles.indexOf("AIエージェントに質問する")>=0) return;
+      pushBot({text:ch.text||"", choices:choices});
+    }
+  }
+
+  const API_BASE = (typeof window!=="undefined" && window.__ENDPOINT) ? window.__ENDPOINT.replace(/\/$/,'') : ((location.protocol==='http:'||location.protocol==='https:')?location.origin:'http://127.0.0.1:8788');
+  const SEARCH_PROXY = API_BASE+'/search';
+  const NARRATE = ["🔎 ご質問の内容を解析しています…","📚 ナレッジ（FAQ）を検索しています…","🌐 公式ヘルプ・Web情報も確認しています…","✍️ 回答をまとめています…"];
+
+  const LOG_URL = SEARCH_PROXY.replace('/search','/log');
+  const logMsg = (role,text)=>{ if(!sessionRef.current||!text) return; fetch(LOG_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:sessionRef.current,role:role,text:String(text).slice(0,4000)})}).catch(()=>{}); };
+  const connect = ()=>{
+    setErr(""); sessionRef.current=((typeof window!=="undefined"&&window.__UID)||"")||uuid();
+    const wid=uuid();
+    pushBot({id:wid, text:"こんにちは！**DECAサポートコンシェルジュ**です。\n「**よくあるご質問**」から選ぶか、下の入力欄に自由にご記入ください。", starters:STARTERS, others:["サポートチームへ問い合わせる","要望を送る"]});
+    // ナレッジで実際に答えられる（ヒットする）候補だけに絞り込む
+    (async()=>{ try{
+      const checks=await Promise.all(STARTERS.map(async s=>{ try{ const a=await fetchKnowledge(s); return (a&&a.length)?s:null; }catch(e){ return null; } }));
+      const good=checks.filter(Boolean);
+      if(good.length) setMsgs(p=>p.map(m=> m.id===wid ? Object.assign({},m,{starters:good}) : m));
+    }catch(e){} })();
+  };
+  const boot = ()=>{ setOpen(true); if(bootedRef.current) return; bootedRef.current=true; connect(); };
+  const reload = ()=>{
+    answering.current=false; setExpanded(false); setLoading(""); setMsgs([]); setErr(""); connect();
+  };
+
+  // KBから最適なFAQを返す（しきい値未満は null）
+  const matchKB = (q)=>{
+    q=String(q||"").toLowerCase(); let best=null,sc=0;
+    WEBFAQ.forEach(f=>{let s=0; f.kw.forEach(k=>{ if(q.indexOf(k.toLowerCase())>=0) s+=k.length>=3?2:1; }); if(s>sc){sc=s;best=f;}});
+    return sc>=2 ? best : null;
+  };
+  const callProxy = async (q)=>{ const r=await fetch(SEARCH_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({q:q})}); const j=await r.json(); return j.text||""; };
+  // Salesforceナレッジ(88記事)をSOSLで実検索
+  const fetchKnowledge = async (q)=>{ try{ const r=await fetch(SEARCH_PROXY.replace('/search','/knowledge'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({q:q})}); const j=await r.json(); return j.articles||[]; }catch(e){ return []; } };
+  // 記事タイトルから公式ヘルプURLを解決（ローカル記事メタと突合）
+  const urlByTitle = (title)=>{ const arts=(typeof window!=="undefined"&&window.__DECA_ARTICLES)||[]; const t=String(title||"").replace(/^【[^】]*】/,"").trim(); const hit=arts.find(a=>a.title&&(a.title===title||a.title.indexOf(t)>=0||t.indexOf(a.title)>=0)); return hit?hit.url:null; };
+  // 一致するローカル記事の画像マーカーを本文末尾に補完
+  const addImages = (bodyText, title)=>{ try{ const t2=String(title||"").replace(/^【[^】]*】/,"").trim(); const la=((typeof window!=="undefined"&&window.__DECA_ARTICLES)||[]).find(a=>a.title&&(a.title===title||(t2&&(a.title.indexOf(t2)>=0||t2.indexOf(a.title)>=0)))); if(la){ const imgs=(la.body.match(/!\[img\]\([^)]+\)/g)||[]).slice(0,4); if(imgs.length) return bodyText+"\n\n"+imgs.join("\n"); } }catch(e){} return bodyText; };
+  // 後追い生成した詳細を該当メッセージのartに反映（2段表示）
+  const updateArtBody = (mid, newBody)=>{ stopDetTimer(); setMsgs(p=>p.map(m=> (m.id===mid && m.art) ? Object.assign({},m,{art:Object.assign({},m.art,{body:newBody, _detailLoading:false})}) : m)); };
+  // クエリと記事タイトルに有意な共通語があるか（汎用語は除外）＝出典/画像の誤紐付け防止
+  const relevant = (q,title)=>{ const gen=/(LINE|LIBERO|DECA|for|について|とは|に関して|の|を|に|が|は|方法|設定|機能|こと)/g; const tc=String(title||"").replace(/^【[^】]*】/,"").replace(gen,""); const qc=String(q||"").replace(gen,""); for(let i=0;i<tc.length-1;i++){ const g=tc.substr(i,2); if(g.replace(/\s/g,"").length===2 && qc.indexOf(g)>=0) return true; } return false; };
+  // 先頭の挨拶・お礼・前置き（「お問い合わせ〜ありがとうございます」「ご案内いたします」等）を除去
+  const stripPolite = (t)=> String(t||"").replace(/^(?:[^\n。]*?(?:ありがとうございます|よろしくお願い[^。\n]*|ご案内(?:いた)?します|お問い合わせ[^。\n]*|お世話になって[^。\n]*|承りました)[。\.！!]?[\s\n]*)+/,"").trim();
+  // 質問を検索用キーワードに変換（助詞・語尾を除去）＝言い換え再検索用
+  const toKeywords = (s)=> String(s||"").replace(/[（(][^）)]*[）)]/g," ").replace(/(を|に|が|は|へ|で|と|や|の|から|まで|より)/g," ").replace(/(たい|します|してください|して|する|について|に関して|教えて(ください)?|方法|可能か?|ですか|でしょうか|分からない|わからない|困って(いる|います)?|うまくいかない|できない)/g," ").replace(/[・,、。!！?？]/g," ").replace(/\s+/g," ").trim();
+  // 顧客向けに不適切なメタ表現（「記事2では」「ナレッジ記事には〜」「ご案内できかねます」等）を含む文を除去
+  const cleanMeta = (t)=>{ const meta=/(記事[0-9０-９]|ナレッジ記事|ご提供いただ|提示(された|いただ)|今回の記事|記載(は|が)?(ありません|ございません|なく|無く)|含まれており?ません|触れられており?ません|扱われており?ません|言及(は|されて)|ご案内(する|いた)?(ことが)?でき(ません|かね)|該当(する|の)(情報|記述|内容|記事)|具体的な(手順|操作)[^。]{0,12}(記述|情報|記載)[^。]{0,6}(ありません|ございません))/; return String(t||"").split(/(?<=[。\n])/).filter(s=>{ const x=s.trim(); return x && !meta.test(x); }).join("").trim(); };
+  const fetchWeb = async (q)=>{
+    const t=await callProxy("DECA for LINE（LIBERO）の操作・設定について、"+q+"。公式ヘルプ https://libero-support.zendesk.com/hc/ja/ を参考に具体的な手順で簡潔に回答して。なお、DECA for LINE（LIBERO）と無関係な内容（他社製品・一般的なツール・Google等）なら手順は作らず『対象外』とだけ答えて。");
+    return t||"（回答を取得できませんでした）";
+  };
+  // 要約：本文を根拠に、質問への結論だけを1〜2文で確実に生成
+  const fetchSummary = async (query, context)=>{
+    return await callProxy("あなたはDECA for LINE（LIBERO）のサポート担当です。次の【参考データ】だけを根拠に、ユーザーの【質問】への“解決策・やり方”を日本語で2〜3文（200字以内）で具体的に答えてください。\n必須：『どうすればよいか』が分かる操作・手順の要点を入れる（例：「『リッチメニュー』→『新規作成』からテンプレを選び…」）。可否だけでなく“方法”を示す。\n禁止：『〜できます』だけで終える可否回答、『〜とは？』の問い返し、見出しや質問文のオウム返し、前置き・感想・記事タイトルの引用。\n参考データに方法が無い場合のみ『公式ヘルプをご確認ください』とだけ返す。\n\n【質問】"+query+"\n\n【参考データ】\n"+String(context||"").slice(0,2600));
+  };
+  const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
+
+  // 回答処理：動的ローディング実況 → KB優先 → WEBsearchフォールバック → 全画面で回答
+  const doAnswer = async (query)=>{
+    if(answering.current) return; answering.current=true; setBusy(true);
+    userActedRef.current=true; setErr("");
+    setLoading("ご質問の内容を解析しています…");
+    let art=null, found=true, sqV="", detailCtxV="", srcTitleV="", detailImgsV="", clarifyV="", clarifyOptsV=[];
+    try{
+      const ZD=q=>"https://libero-support.zendesk.com/hc/ja/search?query="+encodeURIComponent(q);
+      const nf=x=>(/(見つかりませんでした|確認できませんでした|情報が見つか|回答を控え|提供できません|取得できません|対象外|わかりかね|お答えでき(ない|ません|かね))/.test(x) || x.replace(/[\s　]/g,"").length<25);
+      // 直前の話題を踏まえる（「なにをすればいいの？」等の追質問を文脈解決）
+      // 文脈追質問の判定：主語(機能名)を含まない汎用質問は前トピックを補完
+      const hasSubj = /[ァ-ヶ]{3,}|配信|メニュー|セグメント|オーディエンス|フィルタ|ステップ|シナリオ|タグ|ラベル|権限|ログイン|アカウント|テンプレート|ノード|チャット|クーポン|メッセージ|分析|連携|友だち|属性/.test(query);
+      const genericQ = /^(これ|それ|あれ|どう|どの|どれ|どんな|なぜ|どうして|なに|何|どこ|いつ|つまり|具体的|もっと|他に|続き|じゃあ|では|で\?|で？)/.test(query.trim()) || /(どのよう|どんな|なぜ|どうして|いつ(使|利用)|使い方|どういうとき|どういう時|メリット|デメリット|違いは|何ができ|なにができ|利用するの|利用しま|使うの)/.test(query.trim());
+      const isFollowup = (query.trim().length<8 || genericQ) && !hasSubj;
+      const sq = (isFollowup && prevTopic.current) ? (prevTopic.current+" に関して、"+query) : query;
+      // 複雑さに応じて検索の深さ/速度を変える（単純＝浅く速く・1回／複雑＝精査）
+      const complex = sq.length>=22 || (sq.match(/[、,。]/g)||[]).length>=2 || isFollowup;
+      setLoading("ご質問の意図を整理しています…（約2秒）");
+      // DECA for LINE前提で、まず元の質問→ヒットしなければ言い換えで再検索（候補も増やす）
+      let cands=[], ans="", src="", srcTitle="", twoStage=false, detailCtx="", imgs="", clarify=false, clarifyMsg="", clarifyOpts=[], srcsArr=[];
+      const NF=/(該当なし|見つかりま|見当たりま|情報が(ありません|不足|見当たり)|記載が(ありません|なく|ございません)|記述(は|が)?(ありません|見当たり|なく)|含まれていません|提供できません|記事内には)/;
+      const variants=[sq]; const kw=toKeywords(sq); if(kw && kw!==sq && kw.replace(/\s/g,"").length>=2) variants.push(kw);
+      for(let vi=0; vi<variants.length && !ans; vi++){
+        setLoading(vi===0 ? "DECA for LINE のナレッジ（公式FAQ）を検索しています…（約3秒）" : "言い換え「"+variants[vi]+"」で再検索しています…（約3秒）");
+        const hit=(await fetchKnowledge(variants[vi])).slice(0,4);
+        if(!hit.length) continue;
+        cands=hit;
+        setLoading("ナレッジを確認して回答を考えています…（約10秒）");
+        // 上位3記事を根拠にまず要約だけ高速生成（詳細は後追い）。質問は元の意図(sq)を使用
+        const ctx=cands.slice(0,3).map((a,i)=>"■記事"+(i+1)+"「"+a.title+"」\n"+(a.body||"").slice(0,800)).join("\n\n---\n\n").slice(0,2600);
+        const a=await callProxy("あなたはDECA for LINE（LIBERO）のサポート担当です。次の【ナレッジ記事】だけを根拠に、質問への結論を1〜2文で答えて。手順・箇条書き・前置きは書かず結論のみ。挨拶・お礼（「お問い合わせいただきありがとうございます」「ご案内いたします」等）は一切書かない。可否で終えず要点を含める。最後に改行して『出典: 記事N(関連度XX%)』の形で、結論に使った記事番号と、その記事が質問にどれだけ合致するかの関連度(0〜100%)を書く（複数使った場合は『記事N(XX%)、記事M(YY%)』）。使わなければ『出典: なし』。どの記事にも答えが無ければ本文は『該当なし』。具体的な機能名や操作（作成・設定・配信・ログイン・計測・変更・接続・招待等）を含む質問には必ず回答する。『要確認: 』を使うのは、対象の機能も操作も特定できない極めて漠然とした質問（例：『コツを教えて』『おすすめは？』『何ができる？』だけ）に限る。その場合のみ『要確認: 』に続けて短い聞き返しを1つ書き、次の行に『選択肢: 』として具体的な選択肢を3〜4個『｜』区切りで書く（各選択肢は短い『〜したい』『〜の方法』形）。\n\n【質問】"+sq+"\n\n【ナレッジ記事】\n"+ctx);
+        const mc=String(a||"").match(/要確認[:：]\s*([\s\S]+)/);
+        if(mc){ clarify=true; const raw=mc[1];
+          const om=raw.match(/選択肢[:：]\s*([^\n]+)/);
+          clarifyOpts=om?om[1].split(/[｜|，,、]/).map(s=>s.trim().replace(/^[・\-\d.\s]+/,"")).filter(s=>s.length>1).slice(0,4):[];
+          clarifyMsg=raw.replace(/\n?\s*選択肢[:：][\s\S]*$/,"").replace(/\n?\s*出典[:：][\s\S]*$/m,"").trim();
+          break; }
+        if(a && !NF.test(a) && a.replace(/[\s　]/g,"").length>12){
+          const toN=s=>parseInt(String(s).replace(/[０-９]/g,d=>"０１２３４５６７８９".indexOf(d)));
+          const seg=(a.match(/出典[:：]([\s\S]*)$/m)||[])[1]||"";
+          const pairs=[]; let pm; const rgx=/記事\s*([0-9０-９]+)[^0-9０-９%％]{0,10}?([0-9０-９]{1,3})\s*[%％]/g;
+          while((pm=rgx.exec(seg))) pairs.push([toN(pm[1]), Math.min(99,Math.max(1,toN(pm[2])))]);
+          if(!pairs.length){ const m1=seg.match(/記事\s*([0-9０-９]+)/); if(m1) pairs.push([toN(m1[1]),0]); }
+          ans=cleanMeta(stripPolite(a.replace(/\n?\s*出典[:：][\s\S]*$/m,"").replace(/^\s*要約[:：]\s*/,"").trim()));
+          srcsArr=[];
+          pairs.forEach(function(pr,k){ const c=cands[pr[0]-1]; if(c){ srcsArr.push({title:c.title, url:(c.url||urlByTitle(c.title)||""), pct:(pr[1]|| Math.max(45,90-k*20))}); } });
+          if(srcsArr.length){ src=srcsArr[0].url; srcTitle=srcsArr[0].title; const uc0=cands[pairs[0][0]-1]; if(uc0) imgs=(String(uc0.body||"").match(/!\[img\]\([^)]+\)/g)||[]).slice(0,4).join("\n"); }
+          twoStage=true; detailCtx=ctx;
+        }
+      }
+      if(clarify){ found=false; clarifyV=clarifyMsg; clarifyOptsV=clarifyOpts; }
+      if(!ans && !clarify){
+        setLoading("公式ヘルプ・Webを検索しています…（10秒ほどかかります）");
+        let t=await fetchWeb(sq);
+        if(nf(t)){ setLoading("検索範囲を広げて再検索しています…（10秒ほどかかります）"); t=await callProxy("DECA for LINE（LIBERO）／LINE に関する次の質問に、公式ヘルプ https://libero-support.zendesk.com/hc/ja/ に加えLINEの一般的な知識も踏まえ、具体的に手順・要点を"+(complex?"3〜5文":"1〜2文")+"で答えて（重要語は**太字**）。無関係な他社製品の場合のみ『対象外』と答えて：「"+sq+"」"); }
+        found=!nf(t);
+        ans=t.replace(/参考[:：]\s*https?:\/\/[^\s]+/,'').trim();
+        src=""; srcTitle="";
+        if(found) srcsArr=[{title:"公式ヘルプ・Web検索結果", url:ZD(sq), pct:null}];   // Web回答時は出典をWeb検索として明示
+      }
+      // 要約/詳細の確定（2段：詳細は空で開始し後追い）
+      let lead, body;
+      if(twoStage){ lead=trimToSentence(ans); body=""; }
+      else{
+        const mm=String(ans).match(/^\s*要約[:：]\s*(.+)$/m);
+        lead=mm?trimToSentence(mm[1].trim()):deriveLead(ans);
+        body=trimToSentence(String(ans).replace(/^\s*要約[:：].*$/m,"").trim()) || lead;
+      }
+      // 非回答（見当たらない/公式ヘルプで確認系）は found=false にして拡張せずチャット内で完結
+      if(found && /(見当たりませんでした|特定できませんでした|情報が(見当たりません|不足|ありません)|記載されていません|提供元へ|公式(の)?(サポート|ヘルプ)[^。]{0,18}(ご確認|お問い合わせ))/.test(lead)) found=false;
+      art={title:query, lead:lead, body:body, source:src, sourceTitle:srcTitle, sources:srcsArr, _detailLoading:(twoStage&&found)};
+      // 関連する質問＝同じ検索でヒットした関連記事タイトル（高関連）。不足分はお困りごとで補完
+      let rel=(cands||[]).map(a=>toTrouble(a.title)).filter(t=>t && t!==query && t!==toTrouble(srcTitle)).slice(0,3);
+      if(rel.length<3) rel=rel.concat(STARTERS.filter(s=>s!==query && rel.indexOf(s)<0)).slice(0,3);
+      art.related=rel;
+      if(found && !isFollowup && query.trim().length>=4) prevTopic.current=query;
+      sqV=sq; detailCtxV=detailCtx; srcTitleV=srcTitle; detailImgsV=imgs;
+    }catch(e){ setLoading(""); pushBot({text:"検索中にエラーが発生しました（"+(e.message||e)+"）。proxyが起動しているかご確認ください。"}); answering.current=false; setBusy(false); return; }
+    setLoading("");
+    if(found){
+      // 左チャットは短い通知、右ペインにFAQ記事として提示
+      var related = (art.related&&art.related.length)?art.related:STARTERS.filter(s=>s!==query).slice(0,3);
+      const chatReply=(art.lead?art.lead+"\n\n":"")+"👉 詳しい手順は右の画面にまとめました。";
+      const mid=uuid();
+      pushBot({id:mid, text:chatReply, art:art, related:related});
+      setExpanded(true);
+      logMsg('bot', art.lead||art.body||"");
+      // ② 詳細を後追いで生成して右ペインに追記（2段表示）。busyは解放済みなので待たせない
+      if(art._detailLoading){ startDetTimer();
+        (async()=>{ try{
+          let d=await callProxy("あなたはDECA for LINE（LIBERO）のサポート担当です。次の【ナレッジ記事】を主な根拠に、必要ならDECA for LINEの一般的な操作知識も補い、質問への具体的な手順・補足を“お客様向けの回答文”として書いて。\n【書式（厳守）】重要語は**太字**。小見出しは行頭に「## 」を置き独立行に。手順は各ステップを改行して行頭に「1. 」「2. 」。箇条書きは各項目を改行して行頭に「- 」。複数の項目や手順を絶対に1行に詰め込まず、必ず改行する。見出しの直後も改行する。\n【内容（厳守）】『記事1/記事2』『ナレッジ記事』『ご提供いただいた』等のメタ表現や、『記載がありません/含まれておりません/触れられていません/ご案内できかねます』等の言い訳は一切書かない。挨拶・お礼・前置き・結論の重複も書かない。\n\n【質問】"+sqV+"\n\n【ナレッジ記事】\n"+detailCtxV);
+          let b=normalizeMd(cleanMeta(stripPolite(trimToSentence(String(d||"").replace(/^\s*要約[:：].*$/m,"").trim()))));
+          // 詳細が要約と実質同一なら詳細テキストは出さない（重複回避）
+          const nrm=s=>String(s||"").replace(/[\s　*#・\-0-9.「」（）()。、,：:]/g,"");
+          const nb=nrm(b), nl=nrm(art.lead);
+          const dup = nb && nl && (nb===nl || (nb.indexOf(nl)===0 && nb.length-nl.length<25) || nl.indexOf(nb)===0);
+          if(dup) b="";
+          if(b && b.replace(/[\s　]/g,"").length>=8){ if(detailImgsV) b=b+"\n\n"+detailImgsV; updateArtBody(mid, b); }
+          else if(detailImgsV) updateArtBody(mid, detailImgsV);   // 重複/空でも画像があれば画像のみ
+          else updateArtBody(mid, "");                            // それ以外は詳細を出さない（要約のみ）
+        }catch(e){ updateArtBody(mid, art.lead); } })();
+      }
+    } else if(clarifyV){
+      pushBot({text:clarifyV, related:(clarifyOptsV&&clarifyOptsV.length?clarifyOptsV:STARTERS)});
+      logMsg('bot', clarifyV);
+    } else {
+      pushBot({text:"申し訳ありません。該当する回答が見つかりませんでした。お手数ですが、サポートチームへお問い合わせください▼\nhttps://forms.deca.cloud/01j92qpkf24g5e1ns35c5xw35k"});
+      logMsg('bot', "（該当する回答が見つかりませんでした）");
+    }
+    answering.current=false; setBusy(false);
+  };
+
+  const showMe=(t)=> setMsgs(p=>p.concat([{id:uuid(),from:'me',text:t}]));
+  const askTopic=(topic)=>{ if(busy||answering.current) return; showMe(topic); logMsg('user', topic); lastQ.current=topic; doAnswer(topic); };
+  const thinkPause = async (ms)=>{ setTyping(true); await sleep(ms||900); setTyping(false); };
+  // 直近の会話履歴（文脈考慮の会話応答用）
+  const recentHistory = ()=> msgs.slice(-6).map(m=>(m.from==='me'?'ユーザー: ':'サポート: ')+String((m.text||(m.art&&m.art.lead)||"")).replace(/\s+/g,' ').slice(0,180)).filter(s=>s.length>4).join('\n');
+  const convReply = async (instruction,text)=>{ const hist=recentHistory(); return await callProxy("あなたはDECA for LINE（LIBERO）のサポートコンシェルジュです。これまでの会話を踏まえ、自然で簡潔（1〜3文）な日本語で返答して。前置きや決まり文句の繰り返しは避け、相手の直前の発言に具体的に応答して。"+instruction+"\n\n【これまでの会話】\n"+hist+"\n\nユーザー: "+text+"\nサポート: "); };
+  const send=async(text)=>{
+    text=(text||"").trim(); if(!text||busy||answering.current) return; setInput(""); showMe(text); logMsg('user', text);
+    const cls=classifyInput(text);
+    // あいさつ・お礼は即答（定型）
+    if(cls==="greeting"||cls==="thanks"){ setBusy(true); await thinkPause(700); const r=cls==="greeting"?"こんにちは！**DECA for LINE（LIBERO）のサポートコンシェルジュ**です😊\n上の「**よくあるご質問**」から選ぶか、具体的なご質問（例：**シナリオ配信の設定方法**）をご入力ください。":"どういたしまして！他にもご不明点があればいつでもどうぞ🙌"; pushBot({text:r}); logMsg('bot',r); setBusy(false); return; }
+    if(cls==="meta"){ lastQ.current="DECA for LINEでできること"; doAnswer("DECA for LINE（LIBERO）でできること・主な機能・得意なことを教えて"); return; }
+    // 以下は会話履歴を踏まえてLLMが自然応答（定型文の繰り返しを避ける）
+    const conv=async(instruction,opts)=>{ setBusy(true); setLoading("お問い合わせ内容を確認しています…（約5秒）"); await thinkPause(350); let r=await convReply(instruction,text); r=String(r||"").trim(); setLoading(""); pushBot(Object.assign({text:r||"恐れ入ります。もう少し具体的に教えていただけますか？🙏"},opts||{})); logMsg('bot',r); setBusy(false); };
+    if(isSales(text)){ await conv("料金・契約・解約・お申し込み等のお手続きは、この場では完結できず専用フォームでの対応になります。会話の流れを踏まえて共感的に一言添え、案内が必要なときだけ末尾に『▼\\nhttps://forms.deca.cloud/01j92qpkf24g5e1ns35c5xw35k』を添えて。毎回同じ定型文やURLを繰り返さない。"); return; }
+    if(!isLineRelated(text)){ await conv("これはDECA for LINE（LIBERO）／LINEの範囲外の話題です。会話を踏まえて丁寧にお断りし、LINE運用（配信・シナリオ・リッチメニュー・セグメント等）のご質問を自然に促して。"); return; }
+    if(cls==="smalltalk"){ await conv("雑談には簡潔に応じつつ、DECA for LINEの操作・設定サポートである旨を自然に伝えて。"); return; }
+    if(cls==="vague"||isVagueTrouble(text)){ await conv("質問が曖昧で正確に答えられません。会話を踏まえ、具体化のための短い問い返しを1つだけして（具体例を1〜2個添える）。",{related:DIG}); return; }
+    lastQ.current=text; doAnswer(text);
+  };
+  const handleOther=async(s)=>{
+    if(busy||answering.current) return;
+    showMe(s); logMsg('user',s); setBusy(true);
+    setLoading("フォームをご案内しています…（約2秒）"); await thinkPause(800); setLoading("");
+    if(/サポートチーム/.test(s)) pushBot({text:"サポートチームにおつなぎします。下記フォームよりお問い合わせください（営業時間内・通常1営業日以内に返信）▼\nhttps://forms.deca.cloud/01j92qpkf24g5e1ns35c5xw35k"});
+    else pushBot({text:"ご要望はこちらのフォームから承ります▼\nhttps://forms.deca.cloud/01j92qpkf24g5e1ns35c5xw35k"});
+    setBusy(false);
+  };
+  // 回答フィードバック → proxy経由で sandbox の MessagingSession に記録
+  const handleFeedback=(id,val)=>{
+    setFbState(p=>Object.assign({},p,{[id]:val}));
+    const m=msgs.find(x=>x.id===id);
+    const ans=(m&&m.art)?((m.art.lead?m.art.lead+" ／ ":"")+String(m.art.body||"")).replace(/\s+/g," ").slice(0,400):"";
+    fetch(SEARCH_PROXY.replace('/search','/feedback'),{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({sessionId:sessionRef.current,question:lastQ.current||"",answer:ans,feedback:val})}).catch(()=>{});
+  };
+
+  const linkify = (t)=> String(t).split(/(https?:\/\/[^\s]+)/g).map((s,i)=>
+    /^https?:\/\//.test(s)? React.createElement('a',{key:i,href:s,target:'_blank',rel:'noopener'},s) : s);
+
+  if(!open){
+    return <button className="launcher" onClick={boot}>
+      <span style={{width:'26px',height:'26px',display:'inline-flex',flex:'0 0 auto'}}><Logo/></span>
+      DECA サポートコンシェルジュに相談する</button>;
+  }
+
+  // 右ペインに大きく出す「最新の回答（FAQ記事）」
+  let latestArt=null, latestMsgId=null;
+  for(let k=msgs.length-1;k>=0;k--){ if(msgs[k].from==='bot' && msgs[k].art){ latestArt=msgs[k].art; latestMsgId=msgs[k].id; break; } }
+
+  return (
+    <React.Fragment>
+      {expanded && <div className="backdrop" onClick={()=>setExpanded(false)}></div>}
+      <div className={"panel"+(expanded?" expanded":"")}>
+        <div className="pHd">
+          <div className="av logo"><Logo/></div>
+          <div style={{flex:1}}><div className="t">DECA サポートコンシェルジュ</div></div>
+          {expanded
+            ? <button className="exp" onClick={()=>setExpanded(false)}>⤡ 縮小</button>
+            : (latestArt && <button className="exp" onClick={()=>setExpanded(true)}>⤢ 拡大</button>)}
+          <button className="x" onClick={reload} title="会話をリセット">↻</button>
+          <button className="x" onClick={()=>setOpen(false)}>×</button>
+        </div>
+        <div className="bodyRow">
+          <div className="leftcol">
+            <div className="thread" ref={threadRef}>
+              <div className="day">今日</div>
+              {msgs.map(m=> m.from==='me'
+                ? <div className="row me" key={m.id}><div className="av"><UserIcon/></div><div className="bub">{m.text}</div></div>
+                : <React.Fragment key={m.id}>
+                    {m.text && <div className="row bot"><div className="av logo"><Logo/></div><div className="bub">{mdInline(m.text)}</div></div>}
+                    {m.starters &&
+                      <React.Fragment>
+                        <div className="chips"><span className="lbl">よくあるご質問</span>
+                          {m.starters.map((s,i)=><button className="chip" key={i} onClick={()=>askTopic(s)}>{s}</button>)}
+                        </div>
+                        {m.others &&
+                          <div className="chips"><span className="lbl">その他</span>
+                            {m.others.map((s,i)=><button className="chip" key={i} onClick={()=>handleOther(s)}>{s}</button>)}
+                          </div>}
+                      </React.Fragment>}
+                    {m.related && m.related.length>0 &&
+                      <div className="chips"><span className="lbl">関連する質問</span>
+                        {m.related.map((s,i)=><button className="chip" key={i} onClick={()=>askTopic(s)}>{s}</button>)}
+                      </div>}
+                    {m.choices && m.choices.length>0 &&
+                      <div className="chips"><span className="lbl">選択、または下の入力欄に自由入力できます</span>
+                        {m.choices.map((c,i)=><button className="chip" key={i} onClick={()=>send(c.title)}>{c.title}</button>)}
+                      </div>}
+                  </React.Fragment>
+              )}
+              {typing && <div className="row bot typing"><div className="av logo"><Logo/></div><div className="bub"><i></i><i></i><i></i></div></div>}
+              {loading && <div className="row bot"><div className="av logo"><Logo/></div><div className="bub load"><span className="spin"></span>{loading}<span className="elapsed">　経過 {elapsed}秒</span></div></div>}
+            </div>
+            {err && <div className="err">接続エラー: {err}</div>}
+            <form className="composer" onSubmit={e=>{e.preventDefault();send(input);}}>
+              <textarea rows="1" value={input} placeholder={busy?"応答中です…少々お待ちください":"メッセージを入力（Shift + Enter で送信）"}
+                onChange={e=>setInput(e.target.value)}
+                onKeyDown={e=>{if(e.key==='Enter'&&e.shiftKey){e.preventDefault();if(!busy)send(input);}}}/>
+              <button className="snd" type="submit" disabled={!input.trim()||busy}>↑</button>
+            </form>
+          </div>
+          <div className="answerPane">
+            <div className="faqHd"><b>ヘルプセンター</b> › <span>よくあるご質問（FAQ）</span>
+              <span className="tag">ナレッジ / FAQ</span></div>
+            <div className="faqBody">
+              {latestArt
+                ? <div className="article">
+                    <h2>{latestArt.title}</h2>
+                    <div className="meta"><span className="pill">DECA for LINE</span><span>よくあるご質問（FAQ）・公式ヘルプセンター</span></div>
+                    {latestArt.lead && <div className="lead"><span className="leadlbl">💡 回答</span><div className="leadtx"><Typewriter text={latestArt.lead}/></div></div>}
+                    {latestArt._detailLoading
+                      ? <React.Fragment><div className="detlbl">詳細</div><div className="detloading"><span className="dspin"></span>詳細を作成しています…（約10秒）<span className="elapsed">　経過 {detElapsed}秒</span></div></React.Fragment>
+                      : (latestArt.body && latestArt.body!==latestArt.lead && <React.Fragment><div className="detlbl">詳細</div><Markdown text={latestArt.body}/></React.Fragment>)}
+                    {latestArt.sources && latestArt.sources.length>0 &&
+                      <div className="srcbox">
+                        <div className="srchd">📚 この回答に利用した情報（関連度）</div>
+                        {latestArt.sources.map((s,i)=>
+                          <div className="srcrow" key={i}>
+                            <div className="srctitle">{s.url ? <a href={s.url} target="_blank" rel="noopener">{s.title}</a> : <span>{s.title}</span>} ↗</div>
+                            {typeof s.pct==='number' &&
+                              <div className="srcrel"><div className="srcbar"><div className="srcfill" style={{width:s.pct+'%'}}></div></div><span className="srcpct">{s.pct}%</span></div>}
+                          </div>)}
+                      </div>}
+                    <div className="fb">
+                      <span className="fbq">この回答は役に立ちましたか？</span>
+                      {fbState[latestMsgId]
+                        ? <span className="fbthx">✓ フィードバックを記録しました（{fbState[latestMsgId]}）</span>
+                        : <React.Fragment>
+                            <button className="fbtn up" onClick={()=>handleFeedback(latestMsgId,'参考になった')}>👍 参考になった</button>
+                            <button className="fbtn down" onClick={()=>handleFeedback(latestMsgId,'参考にならなかった')}>👎 ならなかった</button>
+                          </React.Fragment>}
+                    </div>
+                  </div>
+                : <div className="faqEmpty"><span className="big">📄</span>FAQの回答が見つかると、<br/>ここに分かりやすく表示されます。</div>}
+            </div>
+          </div>
+        </div>
+      </div>
+    </React.Fragment>
+  );
+}
+ReactDOM.createRoot(document.getElementById("aw-root")).render(<App/>);
+</script>
+</body>
+</html>

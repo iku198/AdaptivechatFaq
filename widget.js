@@ -1,0 +1,46 @@
+/*!
+ * DECA サポートチャット ウィジェット ローダー
+ * GTMやサイトに <script src=".../widget.js" data-src="..." data-endpoint="..."> で設置。
+ *  - data-src      : 埋め込みチャットページ(deca-react-live.html)のURL（CDN/Pages配信）
+ *  - data-endpoint : 中継API(サーバレス)のベースURL（/search・/knowledge・/log を持つ）
+ * iframe で隔離 → 設置先サイトのCSSと衝突しません。開閉でサイズ自動調整。
+ */
+(function () {
+  if (window.__DECA_WIDGET__) return; window.__DECA_WIDGET__ = true;
+  var cs = document.currentScript || (function(){ var s=document.getElementsByTagName('script'); return s[s.length-1]; })();
+  var src = (cs && cs.getAttribute('data-src')) || '';
+  var endpoint = (cs && cs.getAttribute('data-endpoint')) || '';
+  if (!src) { console.error('[DECA widget] data-src が未設定です'); return; }
+  var url = src + (src.indexOf('?') >= 0 ? '&' : '?') + 'embed=1'
+          + (endpoint ? '&endpoint=' + encodeURIComponent(endpoint) : '');
+
+  function mount() {
+    var f = document.createElement('iframe');
+    f.id = 'deca-chat-frame';
+    f.title = 'DECA サポートチャット';
+    f.setAttribute('allow', 'clipboard-write');
+    f.setAttribute('allowtransparency', 'true');
+    f.src = url;
+    f.style.cssText = [
+      'position:fixed', 'right:16px', 'bottom:16px',
+      'width:336px', 'height:96px', 'max-width:100vw', 'max-height:100vh',
+      'border:0', 'background:transparent', 'z-index:2147483000',
+      'box-shadow:none', 'transition:width .25s ease,height .25s ease'
+    ].join(';');
+    document.body.appendChild(f);
+
+    window.addEventListener('message', function (e) {
+      var d = e.data;
+      if (!d || d.deca !== 'resize') return;
+      var vw = window.innerWidth || 1200, vh = window.innerHeight || 800;
+      var m = d.expanded ? 12 : 16;
+      if (d.w) f.style.width = Math.min(d.w, vw - m * 2) + 'px';
+      if (d.h) f.style.height = Math.min(d.h, vh - m * 2) + 'px';
+      // 拡張時は画面中央寄せ（収まり良く）。通常/閉は右下。
+      if (d.expanded) { f.style.right = 'auto'; f.style.left = '50%'; f.style.transform = 'translateX(-50%)'; }
+      else { f.style.left = 'auto'; f.style.transform = 'none'; f.style.right = '16px'; }
+    });
+  }
+  if (document.body) mount();
+  else window.addEventListener('DOMContentLoaded', mount);
+})();

@@ -1,0 +1,7 @@
+name = "deca-bridge"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+# 変数(機密)は CLI: `wrangler secret put NAME`
+#   もしくは ダッシュボード → Settings → Variables and Secrets で設定:
+#   SF_LOGIN_URL / SF_CLIENT_ID / SF_CLIENT_SECRET / ALLOWED_ORIGIN
