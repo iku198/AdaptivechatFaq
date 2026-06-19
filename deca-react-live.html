@@ -795,7 +795,7 @@ function App(){
                   </React.Fragment>
               )}
               {typing && <div className="row bot typing"><div className="av logo"><Logo/></div><div className="bub"><i></i><i></i><i></i></div></div>}
-              {loading && <div className="row bot"><div className="av logo"><Logo/></div><div className="bub load"><span className="spin"></span>{loading}<span className="elapsed">　経過 {elapsed}秒</span></div></div>}
+              {loading && <div className="row bot"><div className="av logo"><Logo/></div><div className="bub load"><span className="spin"></span>{String(loading).replace(/（(約|\d)/,'\n（$1')}<span className="elapsed">　経過 {elapsed}秒</span></div></div>}
             </div>
             {err && <div className="err">接続エラー: {err}</div>}
             <form className="composer" onSubmit={e=>{e.preventDefault();send(input);}}>
