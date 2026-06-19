@@ -87,7 +87,7 @@
   .panel.expanded .article{max-width:920px}
   .bodyRow{flex:1;display:flex;min-height:0}
   .leftcol{display:flex;flex-direction:column;min-height:0;flex:1 1 auto;min-width:0}
-  .panel.expanded .leftcol{flex:0 0 392px;border-right:1px solid #e9e9f0}
+  .panel.expanded .leftcol{flex:0 0 392px;border-right:2px solid #c4c0d8}
   .answerPane{flex:1;min-width:0;display:none;flex-direction:column;background:#f6f7f9;overflow:hidden}
   .panel.expanded .answerPane{display:flex;animation:pop .3s ease}
   /* FAQサイト風記事 */
@@ -816,7 +816,7 @@ function App(){
                     {latestArt.lead && <div className="lead"><span className="leadlbl">💡 回答</span><div className="leadtx"><Typewriter text={latestArt.lead}/></div></div>}
                     {latestArt._detailLoading
                       ? <React.Fragment><div className="detlbl">詳細</div><div className="detloading"><span className="dspin"></span>詳細を作成しています…（約10秒）<span className="elapsed">　経過 {detElapsed}秒</span></div></React.Fragment>
-                      : (latestArt.body && latestArt.body!==latestArt.lead && <React.Fragment><div className="detlbl">詳細</div><Markdown text={latestArt.body}/></React.Fragment>)}
+                      : (latestArt.body && latestArt.body!==latestArt.lead && <React.Fragment><div className="detlbl">詳細</div><Typewriter text={latestArt.body}/></React.Fragment>)}
                     {latestArt.sources && latestArt.sources.length>0 &&
                       <div className="srcbox">
                         <div className="srchd">📚 この回答に利用した情報（関連度）</div>
