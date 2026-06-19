@@ -33,12 +33,18 @@
       var d = e.data;
       if (!d || d.deca !== 'resize') return;
       var vw = window.innerWidth || 1200, vh = window.innerHeight || 800;
-      var m = d.expanded ? 12 : 16;
-      if (d.w) f.style.width = Math.min(d.w, vw - m * 2) + 'px';
-      if (d.h) f.style.height = Math.min(d.h, vh - m * 2) + 'px';
-      // 拡張時は画面中央寄せ（収まり良く）。通常/閉は右下。
-      if (d.expanded) { f.style.right = 'auto'; f.style.left = '50%'; f.style.transform = 'translateX(-50%)'; }
-      else { f.style.left = 'auto'; f.style.transform = 'none'; f.style.right = '16px'; }
+      if (d.expanded) {
+        // 拡張時は全画面
+        f.style.top = '0'; f.style.left = '0'; f.style.right = '0'; f.style.bottom = '0';
+        f.style.transform = 'none';
+        f.style.width = '100vw'; f.style.height = '100vh';
+      } else {
+        // 通常/閉は右下に固定サイズ
+        f.style.top = 'auto'; f.style.left = 'auto'; f.style.transform = 'none';
+        f.style.right = '16px'; f.style.bottom = '16px';
+        if (d.w) f.style.width = Math.min(d.w, vw - 32) + 'px';
+        if (d.h) f.style.height = Math.min(d.h, vh - 32) + 'px';
+      }
     });
   }
   if (document.body) mount();
