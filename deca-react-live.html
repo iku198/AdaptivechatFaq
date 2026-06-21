@@ -116,7 +116,9 @@
   .detloading{display:flex;align-items:center;gap:9px;color:#9a9aa5;font-size:13px;padding:4px 0 10px}
   .detloading .dspin{width:15px;height:15px;border:2px solid #e3dbf7;border-top-color:#7a4ddb;border-radius:50%;display:inline-block;animation:spin .8s linear infinite}
   .article .mdp{font-size:15px;line-height:2;color:#33384a;margin:0 0 14px}
-  .article .mdh{font-size:18.5px;font-weight:800;color:var(--ink);margin:24px 0 10px;padding-left:11px;border-left:4px solid var(--violet);line-height:1.5}
+  .article .mdh{color:var(--ink);line-height:1.5}
+  .article .mdh2{font-size:19px;font-weight:800;margin:26px 0 12px;padding-left:12px;border-left:5px solid var(--violet)}
+  .article .mdh3{font-size:15.5px;font-weight:700;margin:16px 0 7px 14px;padding-left:9px;border-left:3px solid #b3a6e6;color:#4a4660}
   .article .srcbox{margin:22px 0 6px;padding:14px 16px;background:#faf8ff;border:1px solid #e7ddfa;border-radius:12px}
   .article .srchd{font-size:12.5px;font-weight:800;color:#6a4bd0;margin-bottom:10px}
   .article .srcrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:5px 0}
@@ -314,7 +316,7 @@ function Markdown({text}){
     const t=lines[i].trim();
     if(!t){ i++; continue; }
     if(isImg(t)){ const im=t.match(/\((https?:\/\/[^)\s]+)\)/); if(im){ out.push(React.createElement('img',{key:i,src:im[1],alt:'',className:'mdimg',loading:'lazy'})); } i++; continue; }
-    if(isH(t)){ out.push(React.createElement('h3',{key:i,className:'mdh'},mdInline(t.replace(/^#{1,4}\s/,'')))); i++; continue; }
+    if(isH(t)){ const lvl=(t.match(/^#+/)||["##"])[0].length; const cls=lvl<=2?"mdh mdh2":"mdh mdh3"; out.push(React.createElement(lvl<=2?"h3":"h4",{key:i,className:cls},mdInline(t.replace(/^#{1,4}\s/,'')))); i++; continue; }
     if(isNum(t)){ const it=[]; while(i<lines.length&&isNum(lines[i].trim())){ it.push(lines[i].trim().replace(/^\d+[\.\)]\s/,'')); i++; }
       if(it.length>=2) out.push(React.createElement('ol',{key:i},it.map((x,k)=>React.createElement('li',{key:k},mdInline(x)))));
       else out.push(React.createElement('ul',{key:i,className:'mdul'},React.createElement('li',{key:0},mdInline(it[0]))));  // 単独の番号は●に
@@ -684,7 +686,7 @@ function App(){
       // ② 詳細を後追いで生成して右ペインに追記（2段表示）。busyは解放済みなので待たせない
       if(art._detailLoading){ startDetTimer();
         (async()=>{ try{
-          let d=await callProxy("あなたはDECA for LINE（LIBERO）のサポート担当です。次の【ナレッジ記事】を主な根拠に、必要ならDECA for LINEの一般的な操作知識も補い、質問への具体的な手順・補足を“お客様向けの回答文”として書いて。\n【書式（厳守）】重要語は**太字**。小見出しは行頭に「## 」を置き独立行に。手順は各ステップを改行して行頭に「1. 」「2. 」。箇条書きは各項目を改行して行頭に「- 」。複数の項目や手順を絶対に1行に詰め込まず、必ず改行する。見出しの直後も改行する。\n【内容（厳守）】『記事1/記事2』『ナレッジ記事』『ご提供いただいた』等のメタ表現や、『記載がありません/含まれておりません/触れられていません/ご案内できかねます』等の言い訳は一切書かない。挨拶・お礼・前置き・結論の重複も書かない。\n\n【質問】"+sqV+"\n\n【ナレッジ記事】\n"+detailCtxV);
+          let d=await callProxy("あなたはDECA for LINE（LIBERO）のサポート担当です。次の【ナレッジ記事】を主な根拠に、必要ならDECA for LINEの一般的な操作知識も補い、質問への具体的な手順・補足を“お客様向けの回答文”として書いて。\n【書式（厳守）】重要語は**太字**。見出しは階層をつける＝大きな区切りは行頭「## 」、その配下の小見出しは行頭「### 」で独立行に（同列に並ぶ項目は同じレベル、内包関係は###を使う）。手順は各ステップを改行して行頭に「1. 」「2. 」。箇条書きは各項目を改行して行頭に「- 」。複数の項目や手順を絶対に1行に詰め込まず、必ず改行する。見出しの直後も改行する。\n【内容（厳守）】『記事1/記事2』『ナレッジ記事』『ご提供いただいた』等のメタ表現や、『記載がありません/含まれておりません/触れられていません/ご案内できかねます』等の言い訳は一切書かない。挨拶・お礼・前置き・結論の重複も書かない。\n\n【質問】"+sqV+"\n\n【ナレッジ記事】\n"+detailCtxV);
           let b=normalizeMd(cleanMeta(stripPolite(trimToSentence(String(d||"").replace(/^\s*要約[:：].*$/m,"").trim()))));
           // 詳細が要約と実質同一なら詳細テキストは出さない（重複回避）
           const nrm=s=>String(s||"").replace(/[\s　*#・\-0-9.「」（）()。、,：:]/g,"");
