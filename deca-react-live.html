@@ -777,6 +777,7 @@ function App(){
   let latestArt=null, latestMsgId=null;
   if(activeArt){ const f=artList.find(a=>a.id===activeArt); if(f){ latestArt=f.art; latestMsgId=f.id; } }
   if(!latestArt && artList.length){ const last=artList[artList.length-1]; latestArt=last.art; latestMsgId=last.id; }
+  const live = !activeArt;   // 最新(生成中)表示時のみタイプライター。過去タブ閲覧時は即表示
 
   return (
     <React.Fragment>
@@ -843,10 +844,10 @@ function App(){
                 ? <div className="article">
                     <h2>{latestArt.title}</h2>
                     <div className="meta"><span className="pill">DECA for LINE</span><span>よくあるご質問（FAQ）・公式ヘルプセンター</span></div>
-                    {latestArt.lead && <div className="lead"><span className="leadlbl">💡 回答</span><div className="leadtx"><Typewriter text={latestArt.lead}/></div></div>}
+                    {latestArt.lead && <div className="lead"><span className="leadlbl">💡 回答</span><div className="leadtx">{live ? <Typewriter text={latestArt.lead}/> : <Markdown text={latestArt.lead}/>}</div></div>}
                     {latestArt._detailLoading
                       ? <React.Fragment><div className="detlbl">詳細</div><div className="detloading"><span className="dspin"></span>詳細を作成しています…（約10秒）<span className="elapsed">　経過 {detElapsed}秒</span></div></React.Fragment>
-                      : (latestArt.body && latestArt.body!==latestArt.lead && <React.Fragment><div className="detlbl">詳細</div><Typewriter text={latestArt.body}/></React.Fragment>)}
+                      : (latestArt.body && latestArt.body!==latestArt.lead && <React.Fragment><div className="detlbl">詳細</div>{live ? <Typewriter text={latestArt.body}/> : <Markdown text={latestArt.body}/>}</React.Fragment>)}
                     {latestArt.sources && latestArt.sources.length>0 &&
                       <div className="srcbox">
                         <div className="srchd">📚 この回答に利用した情報（関連度）</div>
