@@ -315,6 +315,7 @@ function Markdown({text}){
   while(i<lines.length){
     const t=lines[i].trim();
     if(!t){ i++; continue; }
+    if(/^#{1,4}[ \t　]*$/.test(t)){ i++; continue; }   // 記号だけの空見出し(###)は描画しない
     if(isImg(t)){ const im=t.match(/\((https?:\/\/[^)\s]+)\)/); if(im){ out.push(React.createElement('img',{key:i,src:im[1],alt:'',className:'mdimg',loading:'lazy'})); } i++; continue; }
     if(isH(t)){ const lvl=(t.match(/^#+/)||["##"])[0].length; const cls=lvl<=2?"mdh mdh2":"mdh mdh3"; out.push(React.createElement(lvl<=2?"h3":"h4",{key:i,className:cls},mdInline(t.replace(/^#{1,4}\s/,'')))); i++; continue; }
     if(isNum(t)){ const it=[]; while(i<lines.length&&isNum(lines[i].trim())){ it.push(lines[i].trim().replace(/^\d+[\.\)]\s/,'')); i++; }
