@@ -96,7 +96,10 @@
   /* FAQサイト風記事 */
   .faqHd{display:flex;align-items:center;gap:7px;padding:13px 26px;background:#fff;border-bottom:1px solid #ededf0;font-size:12px;color:#9a9aa5;flex:0 0 auto}
   .faqTabs{display:flex;gap:6px;overflow-x:auto;padding:9px 16px 0;background:#eef0f4;flex:0 0 auto;border-bottom:1px solid #e2e2ea}
-  .faqTab{flex:0 0 auto;max-width:210px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1px solid #e2ddf0;background:#fff;color:#6a7080;font-size:12.5px;padding:7px 13px;border-bottom:none;border-radius:9px 9px 0 0;cursor:pointer}
+  .faqTab{flex:0 0 auto;max-width:230px;display:flex;align-items:center;gap:6px;border:1px solid #e2ddf0;background:#fff;color:#6a7080;font-size:12.5px;padding:7px 9px 7px 13px;border-bottom:none;border-radius:9px 9px 0 0}
+  .faqTabName{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;max-width:185px}
+  .faqTabX{flex:0 0 auto;width:17px;height:17px;line-height:15px;text-align:center;border-radius:50%;color:#9a9aa5;font-size:13px;cursor:pointer}
+  .faqTabX:hover{background:#ece8f7;color:var(--violet)}
   .faqTab:hover{background:#faf8ff}
   .faqTab.act{color:var(--violet);font-weight:800;border-color:#cdbff2;box-shadow:inset 0 -3px 0 var(--violet)}
   .faqHd b{color:var(--violet);font-weight:700}
@@ -459,6 +462,8 @@ function App(){
   const [err,setErr] = useState("");
   const [expanded,setExpanded] = useState(false);
   const [activeArt,setActiveArt] = useState(null);   // 上部タブで選択中のFAQ(メッセージid)
+  const [closedTabs,setClosedTabs] = useState([]);   // 手動で閉じたFAQタブ(id)
+  const closeTab = (id)=>{ setClosedTabs(p=>p.indexOf(id)<0?p.concat([id]):p); setActiveArt(a=>a===id?null:a); };
   const [loading,setLoading] = useState("");   // 動的ローディング実況テキスト
   const [elapsed,setElapsed] = useState(0);    // ローディングのリアルタイム経過秒
   const [detElapsed,setDetElapsed] = useState(0);  // 詳細生成のリアルタイム経過秒
@@ -774,7 +779,7 @@ function App(){
 
   // 右ペインに大きく出す「最新の回答（FAQ記事）」
   // 過去に見たFAQ一覧（上部タブ）。表示中＝アクティブタブ or 最新
-  const artList=[]; for(let k=0;k<msgs.length;k++){ if(msgs[k].from==='bot' && msgs[k].art) artList.push({id:msgs[k].id, art:msgs[k].art}); }
+  const artList=[]; for(let k=0;k<msgs.length;k++){ if(msgs[k].from==='bot' && msgs[k].art && closedTabs.indexOf(msgs[k].id)<0) artList.push({id:msgs[k].id, art:msgs[k].art}); }
   let latestArt=null, latestMsgId=null;
   if(activeArt){ const f=artList.find(a=>a.id===activeArt); if(f){ latestArt=f.art; latestMsgId=f.id; } }
   if(!latestArt && artList.length){ const last=artList[artList.length-1]; latestArt=last.art; latestMsgId=last.id; }
@@ -836,7 +841,10 @@ function App(){
             {artList.length>1 &&
               <div className="faqTabs">
                 {artList.map(a=>
-                  <button key={a.id} className={"faqTab"+(a.id===latestMsgId?" act":"")} onClick={()=>setActiveArt(a.id)} title={a.art.title}>{a.art.title}</button>)}
+                  <div key={a.id} className={"faqTab"+(a.id===latestMsgId?" act":"")} title={a.art.title}>
+                    <span className="faqTabName" onClick={()=>setActiveArt(a.id)}>{a.art.title}</span>
+                    <span className="faqTabX" onClick={(e)=>{e.stopPropagation(); closeTab(a.id);}} title="このタブを閉じる">×</span>
+                  </div>)}
               </div>}
             <div className="faqHd"><b>ヘルプセンター</b> › <span>よくあるご質問（FAQ）</span>
               <span className="tag">ナレッジ / FAQ</span></div>
