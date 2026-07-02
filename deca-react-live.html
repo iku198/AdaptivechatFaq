@@ -84,6 +84,11 @@
   .sugItem:last-child{border-bottom:none}
   .sugItem b{color:var(--violet)}
   .sugItem.sel{background:#f1ebfc}
+  .sugPrev{display:flex;gap:11px;padding:10px 13px;background:#f4f0fc;border-top:1.5px solid #ddd2f0;align-items:flex-start}
+  .sugPrev img{width:94px;height:66px;object-fit:cover;object-position:top;border:1px solid #d8ccf0;flex:0 0 auto;background:#fff}
+  .sugPrevBody{min-width:0}
+  .sugPrevTitle{font-size:12px;font-weight:800;color:#4a28b4;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sugPrevTxt{font-size:11.5px;line-height:1.7;color:#6a5f95;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
   /* ステップガイド（ウィザード） */
   .wizToggle{margin-left:10px;border:1.5px solid var(--violet);background:#fff;color:var(--violet);font-size:11.5px;font-weight:800;padding:4px 11px;cursor:pointer;vertical-align:middle}
   .wizToggle:hover{background:var(--violet);color:#fff}
@@ -335,12 +340,28 @@ function toTrouble(title){
 const kat=s=>String(s||"").toLowerCase().replace(/[ぁ-ん]/g,c=>String.fromCharCode(c.charCodeAt(0)+0x60));
 const SUGGESTIONS=(function(){
   try{
+    const arts=((typeof window!=="undefined"&&window.__DECA_ARTICLES)||[]);
     const out=[],seen={};
-    STARTERS.forEach(s=>{ if(!seen[s]){seen[s]=1;out.push(s);} });
-    ((typeof window!=="undefined"&&window.__DECA_ARTICLES)||[]).forEach(a=>{ const t=toTrouble(a.title); if(t&&t.length>=6&&!seen[t]){seen[t]=1;out.push(t);} });
+    STARTERS.forEach(s=>{ if(!seen[s]){seen[s]=1;out.push({q:s,art:null});} });
+    arts.forEach(a=>{ const t=toTrouble(a.title); if(t&&t.length>=6&&!seen[t]){seen[t]=1;out.push({q:t,art:a});} });
+    // 定番質問にも最も近い記事をbigramスコアで紐付け（プレビュー用）
+    out.forEach(o=>{ if(!o.art){
+      const qc=String(o.q).replace(/(を知りたい|がわからない|について|（[^）]*）)/g,"");
+      let best=null,bs=0;
+      arts.forEach(a=>{ const ttl=String(a.title||""); let s=0; for(let i=0;i<qc.length-1;i++){ if(ttl.indexOf(qc.substr(i,2))>=0) s++; } if(s>bs){bs=s;best=a;} });
+      if(bs>=4) o.art=best;
+    } });
     return out;
-  }catch(e){ return STARTERS.slice(); }
+  }catch(e){ return STARTERS.map(s=>({q:s,art:null})); }
 })();
+// サジェスト候補のプレビュー（タイトル＋冒頭テキスト＋先頭画像）を記事から抽出
+function artPreview(a){
+  if(!a) return null;
+  const body=String(a.body||"");
+  const img=(body.match(/!\[img\]\((https?:\/\/[^)\s]+)\)/)||[])[1]||null;
+  const txt=body.replace(/!\[img\]\([^)]*\)/g," ").replace(/\[([^\]]*)\]\([^)\s]*\)/g,"$1").replace(/(^|\n)目次[\s\S]{0,300}?\n\n/,"\n").replace(/[#*>|]/g,"").replace(/[・･]/g," ").replace(/\s+/g," ").trim().slice(0,110);
+  return {title:a.title, txt:txt, img:img};
+}
 
 // ===== ステップガイド：詳細本文から「番号手順＋画像＋注意書き」を抽出 =====
 function parseSteps(body){
@@ -785,14 +806,21 @@ function App(){
   const SEARCH_PROXY = API_BASE+'/search';
   const NARRATE = ["🔎 ご質問の内容を解析しています…","📚 ナレッジ（FAQ）を検索しています…","🌐 公式ヘルプ・Web情報も確認しています…","✍️ 回答をまとめています…"];
 
-  const LOG_URL = SEARCH_PROXY.replace('/search','/log');
-  const logMsg = (role,text)=>{ if(!sessionRef.current||!text) return; fetch(LOG_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:sessionRef.current,role:role,text:String(text).slice(0,4000)})}).catch(()=>{}); };
+  // 会話ログはApexの__LOG__横取り経由でKbChatLog__cに保存（trending集計の元データ）
+  const logMsg = (role,text)=>{ if(!sessionRef.current||!text) return; fetch(SEARCH_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({q:'__LOG__'+JSON.stringify({sessionId:sessionRef.current,role:role,text:String(text).slice(0,1500)})})}).catch(()=>{}); };
   const connect = ()=>{
     setErr(""); sessionRef.current=((typeof window!=="undefined"&&window.__UID)||"")||uuid();
     const wid=uuid();
     pushBot({id:wid, text:"こんにちは！**DECAサポートコンシェルジュ**です。\n「**よくあるご質問**」から選ぶか、下の入力欄に自由にご記入ください。", starters:STARTERS, others:["サポートチームへ問い合わせる","要望を送る"]});
-    // ナレッジで実際に答えられる（ヒットする）候補だけに絞り込む
     (async()=>{ try{
+      // ① 実際の質問ログから「今週よく見られている質問」を取得（3件以上あれば優先表示）
+      try{
+        const t=await callProxy('__TRENDING__');
+        const list=JSON.parse(String(t||'[]'));
+        const uniq=[]; (Array.isArray(list)?list:[]).forEach(x=>{ const s=String((x&&x.q)||'').trim(); if(s.length>=6&&uniq.indexOf(s)<0) uniq.push(s); });
+        if(uniq.length>=3){ setMsgs(p=>p.map(m=> m.id===wid ? Object.assign({},m,{starters:uniq.slice(0,5), trend:true}) : m)); return; }
+      }catch(e){}
+      // ② フォールバック：定番をナレッジヒットで絞り込む
       const checks=await Promise.all(STARTERS.map(async s=>{ try{ const a=await fetchKnowledge(s); return (a&&a.length)?s:null; }catch(e){ return null; } }));
       const good=checks.filter(Boolean);
       if(good.length) setMsgs(p=>p.map(m=> m.id===wid ? Object.assign({},m,{starters:good}) : m));
@@ -1020,8 +1048,9 @@ function App(){
   // 入力オートコンプリート候補（通信ゼロ：ローカル記事インデックス115件＋定番から）
   const sugQ=kat(input.trim());
   const sugs=(!busy && !sugHide && sugQ.length>=2)
-    ? SUGGESTIONS.map(s=>({s,i:kat(s).indexOf(sugQ)})).filter(x=>x.i>=0).sort((a,b)=>a.i-b.i).slice(0,5)
+    ? SUGGESTIONS.map(o=>({q:o.q,art:o.art,i:kat(o.q).indexOf(sugQ)})).filter(x=>x.i>=0).sort((a,b)=>a.i-b.i).slice(0,5)
     : [];
+  const sugPv=sugs.length ? artPreview((sugs[sugSel>=0?sugSel:0]||{}).art) : null;   // 選択中(なければ先頭)候補の即時プレビュー
 
   return (
     <React.Fragment>
@@ -1046,7 +1075,7 @@ function App(){
                     {m.text && <div className="row bot"><div className="av logo"><Logo/></div><div className="bub">{mdInline(m.text)}</div></div>}
                     {m.starters &&
                       <React.Fragment>
-                        <div className="chips"><span className="lbl">よくあるご質問</span>
+                        <div className="chips"><span className="lbl">{m.trend?"🔥 今週よく見られている質問":"よくあるご質問"}</span>
                           {m.starters.map((s,i)=><button className="chip" key={i} onClick={()=>askTopic(s)}>{s}</button>)}
                         </div>
                         {m.others &&
@@ -1074,10 +1103,18 @@ function App(){
                   <div className="sugLbl">💡 もしかして（↑↓で選択・Enterで送信）</div>
                   {sugs.map((x,i)=>
                     <div key={i} className={"sugItem"+(i===sugSel?" sel":"")}
-                      onMouseDown={e=>{e.preventDefault(); setInput(""); setSugSel(-1); askTopic(x.s);}}
+                      onMouseDown={e=>{e.preventDefault(); setInput(""); setSugSel(-1); askTopic(x.q);}}
                       onMouseEnter={()=>setSugSel(i)}>
-                      {x.i>=0 ? [x.s.slice(0,x.i), <b key="m">{x.s.slice(x.i,x.i+sugQ.length)}</b>, x.s.slice(x.i+sugQ.length)] : x.s}
+                      {x.i>=0 ? [x.q.slice(0,x.i), <b key="m">{x.q.slice(x.i,x.i+sugQ.length)}</b>, x.q.slice(x.i+sugQ.length)] : x.q}
                     </div>)}
+                  {sugPv &&
+                    <div className="sugPrev">
+                      {sugPv.img && <img src={sugPv.img} alt="" loading="lazy"/>}
+                      <div className="sugPrevBody">
+                        <div className="sugPrevTitle">📄 {sugPv.title}</div>
+                        <div className="sugPrevTxt">{sugPv.txt}…</div>
+                      </div>
+                    </div>}
                 </div>}
               <textarea rows="1" value={input} placeholder={busy?"応答中です…少々お待ちください":"メッセージを入力（Shift + Enter で送信）"}
                 onChange={e=>{setInput(e.target.value); setSugSel(-1); setSugHide(false);}}
@@ -1086,7 +1123,7 @@ function App(){
                     if(e.key==='ArrowDown'){e.preventDefault();setSugSel(p=>(p+1)%sugs.length);return;}
                     if(e.key==='ArrowUp'){e.preventDefault();setSugSel(p=>(p<=0?sugs.length-1:p-1));return;}
                     if(e.key==='Escape'){setSugHide(true);setSugSel(-1);return;}
-                    if(e.key==='Enter'&&!e.shiftKey&&sugSel>=0){e.preventDefault();const t=sugs[sugSel].s;setInput('');setSugSel(-1);askTopic(t);return;}
+                    if(e.key==='Enter'&&!e.shiftKey&&sugSel>=0){e.preventDefault();const t=sugs[sugSel].q;setInput('');setSugSel(-1);askTopic(t);return;}
                   }
                   if(e.key==='Enter'&&e.shiftKey){e.preventDefault();if(!busy)send(input);}
                 }}/>
