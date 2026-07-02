@@ -944,7 +944,8 @@ function App(){
       // 要約/詳細の確定（2段：詳細は空で開始し後追い）
       let lead, body;
       // 行頭の箇条書き記号を除去（**太字**の開始記号は食べない＝ペアずれ防止）
-      const stripBullet=s=>{ s=String(s||"").trim(); return /^\*\*[^*]+\*\*/.test(s)?s:s.replace(/^[\s　]*[・･•\-\*]+[\s　]*/,''); };
+      // リード（回答ボックス）は絶対に箇条書き表示にしない：改行を潰し、行頭マーカー（・-*・単独番号）を全除去。**太字**は温存
+      const stripBullet=s=>{ s=String(s||"").trim().replace(/[\s　]*\n[\s　]*/g," "); return s.replace(/^(?:[\s　]*(?:\d{1,2}[\.\)]|[・･•\-]+|\*(?!\*))[\s　]*)+/,""); };
       if(twoStage){ lead=stripBullet(trimToSentence(ans)); body=""; }
       else{
         const mm=String(ans).match(/^\s*要約[:：]\s*(.+)$/m);
