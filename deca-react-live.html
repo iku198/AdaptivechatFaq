@@ -104,7 +104,7 @@
   .faqTab.act{color:var(--violet);font-weight:800;border-color:#cdbff2;box-shadow:inset 0 -3px 0 var(--violet)}
   .faqHd b{color:var(--violet);font-weight:700}
   .faqHd .tag{margin-left:auto;font-size:10.5px;font-weight:800;color:#fff;background:var(--violet);padding:4px 11px;letter-spacing:.3px}
-  .faqBody{flex:1;overflow:auto;padding:30px 30px 50px}
+  .faqBody{flex:1;overflow:auto;padding:16px 30px 50px}
   .article{max-width:780px;margin:0 auto;background:#fff;border:1px solid #ececf2;padding:32px 38px 38px;box-shadow:0 10px 28px rgba(0,0,0,.06)}
   .article h2{margin:0 0 8px;font-size:25px;font-weight:800;line-height:1.45;color:var(--ink)}
   .article .meta{font-size:12px;color:#9a82d6;border-bottom:1px solid #f0f0f4;padding-bottom:15px;margin-bottom:20px;display:flex;gap:8px;align-items:center}
@@ -396,6 +396,9 @@ function cleanBody(s){
 // LLMが1行に詰め込んだ ##見出し / 1. 手順 / - 箇条書き を行頭へ分解（Markdownを正しく描画させる）
 function normalizeMd(t){
   let s=String(t||"").replace(/\r/g,"");
+  s=s.replace(/＃/g,"#");                                                        // 全角＃→半角
+  s=s.replace(/([。！？」』）)])[ \t　]*(#{1,4})[ \t　]*(?=[^\s#])/g,"$1\n\n$2 "); // 文末直後の見出しマーカーを独立行に（例:「…います。#ログイン手順」）
+  s=s.replace(/(^|\n)(#{1,4})(?=[^\s#\n])/g,"$1$2 ");                            // 行頭#の直後に空白を補完
   s=s.replace(/(^|\n)(#{2,4})[ \t　]*\n[ \t　]*(?=\S)/g,"$1$2 ");  // 見出し記号だけが孤立(### 改行 本文)→同じ行に結合
   s=s.replace(/(^|\n)#{1,4}[ \t　]*(?=\n|$)/g,"$1");              // 中身のない見出し記号(###だけ)を除去
   s=s.replace(/[ \t　]*(#{2,4})[ \t]+/g,"\n\n$1 ");              // 見出しを独立行＋前空行
@@ -425,13 +428,13 @@ function insertImagesByPosition(genBody, srcBody){
   try{
     const src=String(srcBody||""); const gen=String(genBody||"");
     const re=/!\[img\]\(([^)]+)\)/g; const items=[]; let m, last=0;
-    while((m=re.exec(src))){ const before=src.slice(last,m.index).replace(/!\[img\]\([^)]*\)/g,""); items.push({url:m[1], anchor:before.replace(/\s+/g," ").trim().slice(-70)}); last=re.lastIndex; }
+    while((m=re.exec(src))){ const before=src.slice(last,m.index).replace(/!\[img\]\([^)]*\)/g,"").replace(/\s+/g," ").trim(); items.push({url:m[1], anchor:before.slice(-70), ctx:before.slice(-170)}); last=re.lastIndex; }
     if(!items.length) return gen;
     const clean=s=>String(s||"").replace(/[\s　#*・\-0-9０-９.．「」『』（）()。、,，：:！!？?＞>※]/g,"");
     const lines=gen.split("\n"); let from=0; const missing=[];
     items.forEach(it=>{
       if(gen.indexOf(it.url)>=0) return;                       // LLMが既に本文中へ配置済み
-      const a=clean(it.anchor); if(a.length<4){ missing.push("![img]("+it.url+")"); return; }
+      const a=clean(it.anchor); if(a.length<4){ missing.push(it); return; }
       const ag=[]; for(let i=0;i<a.length-1;i++) ag.push(a.substr(i,2));
       let bi=-1, bs=0;
       for(let i=from;i<lines.length;i++){
@@ -441,10 +444,19 @@ function insertImagesByPosition(genBody, srcBody){
         if(sc>bs){ bs=sc; bi=i; }
       }
       if(bi>=0 && bs>=0.2){ lines.splice(bi+1,0,"","![img]("+it.url+")",""); from=bi+2; }
-      else missing.push("![img]("+it.url+")");                 // 対応位置が見つからない画像のみ末尾へ
+      else missing.push(it);                                   // 対応位置が見つからない画像は末尾へ（元記事の直前テキスト付き）
     });
     let out=lines.join("\n").replace(/\n{3,}/g,"\n\n").trim();
-    if(missing.length) out=(out?out+"\n\n":"")+missing.join("\n");
+    if(missing.length){
+      // 画像を裸で連続させず、元ナレッジの直前の文を添えて「テキスト→画像」の元の順序で出力
+      const tail=missing.map(x=>{
+        let c=String(x.ctx||"").trim();
+        const cut=c.search(/[。！？]/); if(cut>=0 && cut<c.length-2) c=c.slice(cut+1).trim();  // 先頭の欠けた文を除去
+        if(c && clean(out).indexOf(clean(c).slice(0,24))>=0) c="";                             // 生成本文に既にある文は重複させない
+        return (c?c+"\n\n":"")+"![img]("+x.url+")";
+      }).join("\n\n");
+      out=(out?out+"\n\n":"")+tail;
+    }
     return out;
   }catch(e){ return genBody; }
 }
@@ -890,8 +902,6 @@ function App(){
                     <span className="faqTabX" onClick={(e)=>{e.stopPropagation(); closeTab(a.id);}} title="このタブを閉じる">×</span>
                   </div>)}
               </div>}
-            <div className="faqHd"><b>ヘルプセンター</b> › <span>よくあるご質問（FAQ）</span>
-              <span className="tag">ナレッジ / FAQ</span></div>
             <div className="faqBody">
               {latestArt
                 ? <div className="article">
