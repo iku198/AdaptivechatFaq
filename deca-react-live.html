@@ -70,6 +70,8 @@
   .chips .lbl{flex-basis:100%;font-size:11px;color:var(--mut);margin-bottom:1px}
   .chip{border:1.5px solid var(--violet);color:var(--violet);background:#fff;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;line-height:1.3;text-align:left}
   .chip:hover{background:var(--violet);color:#fff}
+  .chipSkel{display:inline-block;height:37px;border-radius:0;background:linear-gradient(90deg,#e9e2f7 25%,#f6f1fd 50%,#e9e2f7 75%);background-size:200% 100%;animation:shimmer 1.2s linear infinite}
+  @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
 
   .typing .bub{display:flex;gap:4px;padding:13px 14px}
   .typing i{width:7px;height:7px;border-radius:50%;background:#b3a8d9;display:inline-block;animation:bl 1s infinite}
@@ -808,23 +810,33 @@ function App(){
 
   // 会話ログはApexの__LOG__横取り経由でKbChatLog__cに保存（trending集計の元データ）
   const logMsg = (role,text)=>{ if(!sessionRef.current||!text) return; fetch(SEARCH_PROXY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({q:'__LOG__'+JSON.stringify({sessionId:sessionRef.current,role:role,text:String(text).slice(0,1500)})})}).catch(()=>{}); };
+  const TREND_KEY='deca_trend_v1';
+  const readTrendCache=()=>{ try{ const j=JSON.parse(localStorage.getItem(TREND_KEY)||'null'); if(j&&j.t&&(Date.now()-j.t)<24*3600*1000&&Array.isArray(j.qs)&&j.qs.length>=3) return j.qs; }catch(e){} return null; };
   const connect = ()=>{
     setErr(""); sessionRef.current=((typeof window!=="undefined"&&window.__UID)||"")||uuid();
     const wid=uuid();
-    pushBot({id:wid, text:"こんにちは！**DECAサポートコンシェルジュ**です。\n「**よくあるご質問**」から選ぶか、下の入力欄に自由にご記入ください。", starters:STARTERS, others:["サポートチームへ問い合わせる","要望を送る"]});
+    // チラつき防止：前回のトレンドキャッシュがあれば即表示、無ければスケルトン→取得結果で確定
+    const cached=readTrendCache();
+    pushBot({id:wid, text:"こんにちは！**DECAサポートコンシェルジュ**です。\n「**よくあるご質問**」から選ぶか、下の入力欄に自由にご記入ください。", starters:cached, trend:!!cached, sload:!cached, others:["サポートチームへ問い合わせる","要望を送る"]});
+    const fix=(patch)=>setMsgs(p=>p.map(m=> m.id===wid ? Object.assign({},m,{sload:false},patch) : m));
     (async()=>{ try{
       // ① 実際の質問ログから「今週よく見られている質問」を取得（3件以上あれば優先表示）
       try{
         const t=await callProxy('__TRENDING__');
         const list=JSON.parse(String(t||'[]'));
         const uniq=[]; (Array.isArray(list)?list:[]).forEach(x=>{ const s=String((x&&x.q)||'').trim(); if(s.length>=6&&uniq.indexOf(s)<0) uniq.push(s); });
-        if(uniq.length>=3){ setMsgs(p=>p.map(m=> m.id===wid ? Object.assign({},m,{starters:uniq.slice(0,5), trend:true}) : m)); return; }
+        if(uniq.length>=3){
+          const qs=uniq.slice(0,5);
+          try{ localStorage.setItem(TREND_KEY, JSON.stringify({t:Date.now(), qs:qs})); }catch(e){}
+          fix({starters:qs, trend:true}); return;
+        }
       }catch(e){}
-      // ② フォールバック：定番をナレッジヒットで絞り込む
+      // ② フォールバック：定番を即表示→ナレッジヒットで絞り込み
+      if(!cached) fix({starters:STARTERS, trend:false});
       const checks=await Promise.all(STARTERS.map(async s=>{ try{ const a=await fetchKnowledge(s); return (a&&a.length)?s:null; }catch(e){ return null; } }));
       const good=checks.filter(Boolean);
-      if(good.length) setMsgs(p=>p.map(m=> m.id===wid ? Object.assign({},m,{starters:good}) : m));
-    }catch(e){} })();
+      if(good.length && !cached) fix({starters:good, trend:false});
+    }catch(e){ fix({starters:cached||STARTERS}); } })();
   };
   const boot = ()=>{ setOpen(true); if(bootedRef.current) return; bootedRef.current=true; connect(); };
   const reload = ()=>{
@@ -1073,10 +1085,12 @@ function App(){
                 ? <div className="row me" key={m.id}><div className="av"><UserIcon/></div><div className="bub">{m.text}</div></div>
                 : <React.Fragment key={m.id}>
                     {m.text && <div className="row bot"><div className="av logo"><Logo/></div><div className="bub">{mdInline(m.text)}</div></div>}
-                    {m.starters &&
+                    {(m.starters||m.sload) &&
                       <React.Fragment>
                         <div className="chips"><span className="lbl">{m.trend?"🔥 今週よく見られている質問":"よくあるご質問"}</span>
-                          {m.starters.map((s,i)=><button className="chip" key={i} onClick={()=>askTopic(s)}>{s}</button>)}
+                          {m.sload
+                            ? [170,205,150,185].map((w,i)=><span className="chipSkel" key={i} style={{width:w+'px'}}></span>)
+                            : m.starters.map((s,i)=><button className="chip" key={i} onClick={()=>askTopic(s)}>{s}</button>)}
                         </div>
                         {m.others &&
                           <div className="chips"><span className="lbl">その他</span>
