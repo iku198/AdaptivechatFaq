@@ -439,10 +439,16 @@ function insertImagesByPosition(genBody, srcBody){
       last=re.lastIndex;
     }
     if(!items.length) return gen;
+    // 同じURLが2回以上使われる画像＝チェックマーク等の装飾。表示せず、LLMが本文へ複製していたら除去
+    const urlCount={}; items.forEach(it=>{ urlCount[it.url]=(urlCount[it.url]||0)+1; });
+    let gen2=gen; const seenUrl={};
+    items.forEach(it=>{ if(urlCount[it.url]>=2) gen2=gen2.split("![img]("+it.url+")").join(""); });
     const clean=s=>String(s||"").replace(/[\s　#*・\-0-9０-９.．「」『』（）()。、,，：:！!？?＞>※]/g,"");
-    const lines=gen.split("\n"); let from=0; const missing=[];
+    const lines=gen2.split("\n"); let from=0; const missing=[];
     items.forEach(it=>{
-      if(gen.indexOf(it.url)>=0) return;                       // LLMが既に本文中へ配置済み
+      if(urlCount[it.url]>=2 || seenUrl[it.url]) return;       // 装飾画像・同一画像の2回目以降はスキップ
+      seenUrl[it.url]=1;
+      if(gen2.indexOf(it.url)>=0) return;                      // LLMが既に本文中へ配置済み
       const a=clean(it.anchor); if(a.length<4){ missing.push(it); return; }
       const ag=[]; for(let i=0;i<a.length-1;i++) ag.push(a.substr(i,2));
       let bi=-1, bs=0;

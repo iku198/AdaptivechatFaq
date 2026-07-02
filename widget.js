@@ -13,8 +13,11 @@
   if (!src) { console.error('[DECA widget] data-src が未設定です'); return; }
   var d0 = new Date();  // 日次キャッシュバスター（CDNのブラウザキャッシュ7日を最大1日に短縮）
   var ver = d0.getFullYear() * 10000 + (d0.getMonth() + 1) * 100 + d0.getDate();
-  var url = src + (src.indexOf('?') >= 0 ? '&' : '?') + 'embed=1' + '&v=' + ver
-          + (endpoint ? '&endpoint=' + encodeURIComponent(endpoint) : '');
+  var url = '';
+  function buildUrl(base) {
+    return base + (base.indexOf('?') >= 0 ? '&' : '?') + 'embed=1' + '&v=' + ver
+         + (endpoint ? '&endpoint=' + encodeURIComponent(endpoint) : '');
+  }
 
   function mount() {
     var f = document.createElement('iframe');
@@ -49,6 +52,19 @@
       }
     });
   }
-  if (document.body) mount();
-  else window.addEventListener('DOMContentLoaded', mount);
+  function ready() {
+    if (document.body) mount();
+    else window.addEventListener('DOMContentLoaded', mount);
+  }
+  // jsDelivrの @main→コミット解決キャッシュ(最大12h)を回避：最新コミットSHA固定URLで読み込む
+  var gh = src.match(/^(https:\/\/cdn\.jsdelivr\.net\/gh\/)([^\/@]+\/[^\/@]+)@main(\/.+)$/);
+  if (gh) {
+    fetch('https://api.github.com/repos/' + gh[2] + '/commits/main')
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        url = buildUrl(j && j.sha ? gh[1] + gh[2] + '@' + String(j.sha).slice(0, 10) + gh[3] : src);
+        ready();
+      })
+      .catch(function () { url = buildUrl(src); ready(); });
+  } else { url = buildUrl(src); ready(); }
 })();
