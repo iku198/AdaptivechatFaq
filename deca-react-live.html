@@ -330,9 +330,20 @@ function Markdown({text}){
     if(/^#{1,4}[ \t　]*$/.test(t)){ i++; continue; }   // 記号だけの空見出し(###)は描画しない
     if(isImg(t)){ const im=t.match(/\((https?:\/\/[^)\s]+)\)/); if(im){ out.push(React.createElement('img',{key:i,src:im[1],alt:'',className:'mdimg',loading:'lazy'})); } i++; continue; }
     if(isH(t)){ const lvl=Math.min(4,(t.match(/^#+/)||["#"])[0].length); out.push(React.createElement(lvl<=2?"h3":(lvl===3?"h4":"h5"),{key:i,className:"mdh mdh"+lvl},mdInline(t.replace(/^#{1,4}\s/,'')))); i++; continue; }
-    if(isNum(t)){ const it=[]; while(i<lines.length&&isNum(lines[i].trim())){ it.push(lines[i].trim().replace(/^\d+[\.\)]\s/,'')); i++; }
-      if(it.length>=2) out.push(React.createElement('ol',{key:i},it.map((x,k)=>React.createElement('li',{key:k},mdInline(x)))));
-      else out.push(React.createElement('ul',{key:i,className:'mdul'},React.createElement('li',{key:0},mdInline(it[0]))));  // 単独の番号は●に
+    if(isNum(t)){ const it=[];
+      // 手順の途中に挟まる画像は直前のステップ内に取り込む（リスト分断＝番号リセットを防ぐ）
+      while(i<lines.length){
+        const u=lines[i].trim();
+        if(isNum(u)){ it.push({t:u.replace(/^\d+[\.\)]\s/,''),imgs:[]}); i++; continue; }
+        if(!u){ let k=i; while(k<lines.length&&!lines[k].trim())k++; if(k<lines.length&&isImg(lines[k].trim())&&it.length){ i=k; continue; } break; }
+        if(isImg(u)&&it.length){ const im=u.match(/\((https?:\/\/[^)\s]+)\)/); if(im) it[it.length-1].imgs.push(im[1]); i++;
+          let k=i; while(k<lines.length&&!lines[k].trim())k++; if(k<lines.length&&(isNum(lines[k].trim())||isImg(lines[k].trim()))) i=k;
+          continue; }
+        break;
+      }
+      const mkLi=(x,k)=>React.createElement('li',{key:k},mdInline(x.t).concat(x.imgs.map((u2,q)=>React.createElement('img',{key:'im'+q,src:u2,alt:'',className:'mdimg',loading:'lazy'}))));
+      if(it.length>=2) out.push(React.createElement('ol',{key:i},it.map(mkLi)));
+      else out.push(React.createElement('ul',{key:i,className:'mdul'},it.map(mkLi)));  // 単独の番号は●に
       continue; }
     if(isList(t)){ const it=[]; while(i<lines.length&&isList(lines[i].trim())){ it.push(lines[i].trim().replace(/^[\*\-・･]\s?/,'')); i++; }
       out.push(React.createElement('ul',{key:i,className:'mdul'},it.map((x,k)=>React.createElement('li',{key:k},mdInline(x))))); continue; }
@@ -407,6 +418,35 @@ function deriveLead(body){
     return (m?m[0]:t).replace(/\s+/g,"").slice(0,180).trim();
   }
   return String(body||"").replace(/\s+/g," ").slice(0,120).trim();
+}
+
+// 元記事の画像を「直前の文」とのマッチングで生成本文の対応位置に挿入（元ナレッジと同じ順番・位置を保持）
+function insertImagesByPosition(genBody, srcBody){
+  try{
+    const src=String(srcBody||""); const gen=String(genBody||"");
+    const re=/!\[img\]\(([^)]+)\)/g; const items=[]; let m, last=0;
+    while((m=re.exec(src))){ const before=src.slice(last,m.index).replace(/!\[img\]\([^)]*\)/g,""); items.push({url:m[1], anchor:before.replace(/\s+/g," ").trim().slice(-70)}); last=re.lastIndex; }
+    if(!items.length) return gen;
+    const clean=s=>String(s||"").replace(/[\s　#*・\-0-9０-９.．「」『』（）()。、,，：:！!？?＞>※]/g,"");
+    const lines=gen.split("\n"); let from=0; const missing=[];
+    items.forEach(it=>{
+      if(gen.indexOf(it.url)>=0) return;                       // LLMが既に本文中へ配置済み
+      const a=clean(it.anchor); if(a.length<4){ missing.push("![img]("+it.url+")"); return; }
+      const ag=[]; for(let i=0;i<a.length-1;i++) ag.push(a.substr(i,2));
+      let bi=-1, bs=0;
+      for(let i=from;i<lines.length;i++){
+        const l=clean(lines[i]); if(l.length<4) continue;
+        let s=0; for(let k=0;k<ag.length;k++){ if(l.indexOf(ag[k])>=0) s++; }
+        const sc=s/Math.max(8,ag.length);   // アンカー（元記事の直前文）側の被覆率で採点＝短い行が有利にならない
+        if(sc>bs){ bs=sc; bi=i; }
+      }
+      if(bi>=0 && bs>=0.2){ lines.splice(bi+1,0,"","![img]("+it.url+")",""); from=bi+2; }
+      else missing.push("![img]("+it.url+")");                 // 対応位置が見つからない画像のみ末尾へ
+    });
+    let out=lines.join("\n").replace(/\n{3,}/g,"\n\n").trim();
+    if(missing.length) out=(out?out+"\n\n":"")+missing.join("\n");
+    return out;
+  }catch(e){ return genBody; }
 }
 
 // 末尾の不完全な文を除去（見切れ防止）
@@ -624,7 +664,7 @@ function App(){
     if(answering.current) return; answering.current=true; setBusy(true);
     userActedRef.current=true; setErr("");
     setLoading("ご質問の内容を解析しています…");
-    let art=null, found=true, sqV="", detailCtxV="", srcTitleV="", detailImgsV="", clarifyV="", clarifyOptsV=[];
+    let art=null, found=true, sqV="", detailCtxV="", srcTitleV="", detailImgsV="", srcBodyV="", clarifyV="", clarifyOptsV=[];
     try{
       const ZD=q=>"https://libero-support.zendesk.com/hc/ja/search?query="+encodeURIComponent(q);
       const nf=x=>(/(見つかりませんでした|確認できませんでした|情報が見つか|回答を控え|提供できません|取得できません|対象外|わかりかね|お答えでき(ない|ません|かね))/.test(x) || x.replace(/[\s　]/g,"").length<25);
@@ -638,7 +678,7 @@ function App(){
       const complex = sq.length>=22 || (sq.match(/[、,。]/g)||[]).length>=2 || isFollowup;
       setLoading("ご質問の意図を整理しています…（約2秒）");
       // DECA for LINE前提で、まず元の質問→ヒットしなければ言い換えで再検索（候補も増やす）
-      let cands=[], ans="", src="", srcTitle="", twoStage=false, detailCtx="", imgs="", clarify=false, clarifyMsg="", clarifyOpts=[], srcsArr=[];
+      let cands=[], ans="", src="", srcTitle="", twoStage=false, detailCtx="", imgs="", srcBody="", clarify=false, clarifyMsg="", clarifyOpts=[], srcsArr=[];
       const NF=/(該当なし|見つかりま|見当たりま|情報が(ありません|不足|見当たり)|記載が(ありません|なく|ございません)|記述(は|が)?(ありません|見当たり|なく)|含まれていません|提供できません|記事内には)/;
       const variants=[sq]; const kw=toKeywords(sq); if(kw && kw!==sq && kw.replace(/\s/g,"").length>=2) variants.push(kw);
       for(let vi=0; vi<variants.length && !ans; vi++){
@@ -665,7 +705,7 @@ function App(){
           ans=cleanMeta(stripPolite(a.replace(/\n?\s*出典[:：][\s\S]*$/m,"").replace(/^\s*要約[:：]\s*/,"").trim()));
           srcsArr=[];
           pairs.forEach(function(pr,k){ const c=cands[pr[0]-1]; if(c){ srcsArr.push({title:c.title, url:(c.url||urlByTitle(c.title)||""), pct:(pr[1]|| Math.max(45,90-k*20))}); } });
-          if(srcsArr.length){ src=srcsArr[0].url; srcTitle=srcsArr[0].title; const uc0=cands[pairs[0][0]-1]; if(uc0) imgs=(String(uc0.body||"").match(/!\[img\]\([^)]+\)/g)||[]).slice(0,4).join("\n"); }
+          if(srcsArr.length){ src=srcsArr[0].url; srcTitle=srcsArr[0].title; const uc0=cands[pairs[0][0]-1]; if(uc0){ srcBody=String(uc0.body||""); imgs=(srcBody.match(/!\[img\]\([^)]+\)/g)||[]).slice(0,4).join("\n"); } }
           twoStage=true;
           // 詳細生成用コンテキスト：出典記事は画像マーカーを独立行にして長めに渡す（画像の元位置をLLMに伝える）
           const useIdx=pairs.length?pairs[0][0]-1:0;
@@ -698,7 +738,7 @@ function App(){
       if(rel.length<3) rel=rel.concat(STARTERS.filter(s=>s!==query && rel.indexOf(s)<0)).slice(0,3);
       art.related=rel;
       if(found && !isFollowup && query.trim().length>=4) prevTopic.current=query;
-      sqV=sq; detailCtxV=detailCtx; srcTitleV=srcTitle; detailImgsV=imgs;
+      sqV=sq; detailCtxV=detailCtx; srcTitleV=srcTitle; detailImgsV=imgs; srcBodyV=srcBody;
     }catch(e){ setLoading(""); pushBot({text:"検索中にエラーが発生しました（"+(e.message||e)+"）。proxyが起動しているかご確認ください。"}); answering.current=false; setBusy(false); return; }
     setLoading("");
     if(found){
@@ -719,9 +759,8 @@ function App(){
           const nb=nrm(b), nl=nrm(art.lead);
           const dup = nb && nl && (nb===nl || (nb.indexOf(nl)===0 && nb.length-nl.length<25) || nl.indexOf(nb)===0);
           if(dup) b="";
-          // LLMが本文中に置き損ねた画像だけ末尾に補完（本文中に置かれた画像は元記事の位置＝そのまま）
-          const missImgs=detailImgsV?detailImgsV.split("\n").filter(im=>{ const u=(im.match(/\((https?:\/\/[^)\s]+)\)/)||[])[1]; return u && b.indexOf(u)<0; }):[];
-          if(b && b.replace(/[\s　]/g,"").length>=8){ if(missImgs.length) b=b+"\n\n"+missImgs.join("\n"); updateArtBody(mid, b); }
+          // 元記事の画像を対応位置に挿入（元ナレッジと同じ順番・位置。合致しない画像のみ末尾）
+          if(b && b.replace(/[\s　]/g,"").length>=8){ if(srcBodyV) b=insertImagesByPosition(b, srcBodyV); updateArtBody(mid, b); }
           else if(detailImgsV) updateArtBody(mid, detailImgsV);   // 重複/空でも画像があれば画像のみ
           else updateArtBody(mid, "");                            // それ以外は詳細を出さない（要約のみ）
         }catch(e){ updateArtBody(mid, art.lead); } })();
