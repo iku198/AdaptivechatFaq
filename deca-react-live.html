@@ -360,9 +360,10 @@ function Markdown({text}){
       out.push(React.createElement('div',{key:i,className:'mdnote'},it.map((x,k)=>React.createElement('div',{key:k},mdInline(x))))); continue; }
     if(isTbl(t)){ const rows=[]; while(i<lines.length&&isTbl(lines[i].trim())){ rows.push(lines[i].trim()); i++; }
       const parse=r=>r.replace(/^\|/,'').replace(/\|$/,'').split('|').map(c=>c.trim());
+      const sep=r=>r.length>0&&r.every(c=>/^:?[-ー─]{2,}:?$/.test(c));
       let cells=rows.map(parse), head=null;
-      if(cells.length>=2 && cells[1].every(c=>/^:?[-ー─]{2,}:?$/.test(c))){ head=cells[0]; cells=cells.slice(2); }
-      else if(cells.length>=2){ head=cells[0]; cells=cells.slice(1); }
+      if(cells.length>=2 && sep(cells[1])){ head=cells[0]; cells=cells.slice(2).filter(r=>!sep(r)); }
+      else{ cells=cells.filter(r=>!sep(r)); if(cells.length>=2){ head=cells[0]; cells=cells.slice(1); } }  // 区切り行(:---)は絶対に表示しない
       out.push(React.createElement('table',{key:i,className:'mdtable'},
         head&&React.createElement('thead',{key:'h'},React.createElement('tr',null,head.map((c,k)=>React.createElement('th',{key:k},mdInline(c))))),
         React.createElement('tbody',{key:'b'},cells.map((r,ri)=>React.createElement('tr',{key:ri},r.map((c,k)=>React.createElement('td',{key:k},mdInline(c))))))
@@ -426,6 +427,8 @@ function normalizeMd(t){
   s=s.replace(/(^|\n)[ \t　]*-[ \t]+/g,"$1・ ");                 // 箇条書き記号を「・」に統一
   s=s.replace(/(^|\n)[ \t　]*・[ \t]*((?:\*\*)?[^\n：:]{1,20}?(?:\*\*)?[：:])[ \t]*(?=\n|$)/g,"$1### $2"); // 「ラベル：」のみの箇条書きは小見出し化(配下の説明と区別)
   s=s.replace(/([^\n0-9])[ \t　]*(\d{1,2}\.[ \t])/g,"$1\n$2");   // 文中の「N. 」番号付きを改行
+  s=s.replace(/([。！？：:])[ \t　]*(\|(?=[^\n]*\|))/g,"$1\n$2");  // 文末直後に始まる表行（| 項目 | 値 |）を独立行に
+  s=s.replace(/(\|)[ \t　]+(\|[ \t]*:?[-ー─]{2,})/g,"$1\n$2");    // ヘッダー行に詰め込まれた区切り行（| :--- |）を改行
   s=s.replace(/[ \t　]+\n/g,"\n").replace(/\n{3,}/g,"\n\n").replace(/^\n+/,"").trim();
   return s;
 }
