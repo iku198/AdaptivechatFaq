@@ -96,6 +96,8 @@
   .wizStep input{width:17px;height:17px;margin-top:6px;accent-color:#4a28b4;flex:0 0 auto;cursor:pointer}
   .wizStep .wn{flex:0 0 auto;width:26px;height:26px;background:var(--violet);color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:3px}
   .wizStep.done .wtx{text-decoration:line-through;opacity:.55}
+  .wizDesc{margin:8px 0 2px 53px;font-size:13.5px;line-height:1.9;color:#5c4a99}
+  .wizDesc div{margin:2px 0}
   .wizImg{max-width:100%;height:auto;display:block;margin:12px 0 4px;border:1px solid #eaeaf0}
   .wizNav{display:flex;align-items:center;justify-content:space-between;margin-top:12px;gap:10px}
   .wizNav button{border:1.5px solid var(--violet);background:#fff;color:var(--violet);font-size:13px;font-weight:800;padding:8px 16px;cursor:pointer}
@@ -339,13 +341,20 @@ function parseSteps(body){
     const t=lines[i].trim(); if(!t) continue;
     if(/^#{1,4}\s/.test(t)){ curH=t.replace(/^#{1,4}\s+/,"").replace(/\*\*/g,"").replace(/[：:]\s*$/,""); continue; }
     const m=t.match(/^(\d{1,2})[\.\)]\s+(.+)/);
-    if(m){ steps.push({sec:curH,text:m[2],imgs:[],notes:[]}); continue; }
+    if(m){ steps.push({sec:curH,text:m[2],imgs:[],notes:[],desc:[]}); continue; }
     if(!steps.length) continue;
     const im=t.match(/^!\[[^\]]*\]\((https?:\/\/[^)\s]+)\)/);
     if(im){ steps[steps.length-1].imgs.push(im[1]); continue; }
     if(/^※/.test(t)){ steps[steps.length-1].notes.push(t); continue; }
+    steps[steps.length-1].desc.push(t.replace(/^[・･]\s*/,"・ "));   // 手順に続く説明文・箇条書きは補足としてカードに含める
   }
   return steps;
+}
+// ガイド化するのは「操作手順」だけ（〜します/〜ください で終わる指示文が過半数）。種類・順位などの列挙は対象外
+function guideWorthy(steps){
+  if(!steps || steps.length<2) return false;
+  const acty=steps.filter(s=>/(ます|ください)[。．]?\s*$/.test(String(s.text).replace(/\*\*/g,"").trim())).length;
+  return acty>=Math.max(2,Math.ceil(steps.length*0.6));
 }
 function StepGuide({steps}){
   const [gi,setGi]=useState(0);
@@ -362,6 +371,7 @@ function StepGuide({steps}){
           <span className="wn">{gi+1}</span>
           <span className="wtx">{mdInline(st.text)}</span>
         </div>
+        {st.desc&&st.desc.length>0 && <div className="wizDesc">{st.desc.map((d,k)=><div key={k}>{mdInline(d)}</div>)}</div>}
         {st.imgs.map((u,k)=><img key={k} className="wizImg" src={u} alt="" loading="lazy"/>)}
         {st.notes.map((n,k)=><div key={k} className="mdnote">{mdInline(n)}</div>)}
       </div>
@@ -379,10 +389,11 @@ function StepGuide({steps}){
 function DetailView({art,live}){
   const [guide,setGuide]=useState(false);
   const steps=parseSteps(art.body);
+  const ok=guideWorthy(steps);
   return (
     <React.Fragment>
-      <div className="detlbl">詳細{steps.length>=2 && <button className="wizToggle" onClick={()=>setGuide(!guide)}>{guide?"📄 通常表示に戻る":"🧭 ステップガイドで見る"}</button>}</div>
-      {(guide&&steps.length>=2) ? <StepGuide steps={steps}/> : (live?<Typewriter text={art.body}/>:<Markdown text={art.body}/>)}
+      <div className="detlbl">詳細{ok && <button className="wizToggle" onClick={()=>setGuide(!guide)}>{guide?"📄 通常表示に戻る":"🧭 ステップガイドで見る"}</button>}</div>
+      {(guide&&ok) ? <StepGuide steps={steps}/> : (live?<Typewriter text={art.body}/>:<Markdown text={art.body}/>)}
     </React.Fragment>
   );
 }
