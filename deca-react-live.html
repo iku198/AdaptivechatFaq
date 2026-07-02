@@ -143,6 +143,10 @@
   .article ul.mdul{margin:8px 0 16px;padding-left:22px;list-style:disc}
   .article ul.mdul li{font-size:15px;line-height:1.85;color:#43289d;margin-bottom:7px}
   .article .mdimg{max-width:100%;height:auto;display:block;margin:10px 0 18px;border:1px solid #eaeaf0;border-radius:6px}
+  .article .mdtable{border-collapse:collapse;margin:14px 0 20px;width:100%;font-size:14px}
+  .article .mdtable th{background:var(--violet);color:#fff;font-weight:800;padding:9px 13px;text-align:left;border:1px solid #cbbfe8}
+  .article .mdtable td{padding:8px 13px;border:1px solid #d9cdf2;color:#43289d;background:#fff}
+  .article .mdtable tr:nth-child(even) td{background:#f4effc}
   .article .srcline{font-size:13px;color:#7a63b8;margin:18px 0 0;word-break:break-all}
   .article .srcline a{color:var(--violet);font-weight:700}
   .article .fb{margin-top:22px;padding-top:16px;border-top:1px solid #f0f0f4;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -310,11 +314,15 @@ function parseArticle(raw){
 // 簡易マークダウン（**太字** / リンク / 見出し / 箇条書き / 番号付き / 段落）
 function mdInline(s){
   const parts=[]; let rest=String(s); let key=0;
-  const re=/(\*\*([^*]+)\*\*)|(https?:\/\/[^\s）)]+)/;
+  const re=/(\*\*([^*]+)\*\*)|(!?\[([^\]]*)\]\((https?:\/\/[^)\s]+)\))|(https?:\/\/[^\s）)]+)/;
   for(;;){ const m=rest.match(re); if(!m){ parts.push(rest.replace(/[*_`]/g,"")); break; }
     if(m.index>0) parts.push(rest.slice(0,m.index).replace(/[*_`]/g,""));
     if(m[2]!==undefined) parts.push(React.createElement('strong',{key:key++},m[2]));
-    else parts.push(React.createElement('a',{key:key++,href:m[3],target:'_blank',rel:'noopener'},m[3]));
+    else if(m[3]!==undefined){
+      if(m[3].charAt(0)==='!') parts.push(React.createElement('img',{key:key++,src:m[5],alt:m[4]||'',className:'mdimg',loading:'lazy'}));  // 文中の![img](URL)
+      else parts.push(React.createElement('a',{key:key++,href:m[5],target:'_blank',rel:'noopener'},m[4]||m[5]));                            // [テキスト](URL)リンク
+    }
+    else parts.push(React.createElement('a',{key:key++,href:m[6],target:'_blank',rel:'noopener'},m[6]));
     rest=rest.slice(m.index+m[0].length);
   }
   return parts;
@@ -324,6 +332,7 @@ function Markdown({text}){
   const isList=t=>/^[\*\-・･]\s?/.test(t), isNum=t=>/^\d+[\.\)]\s/.test(t), isH=t=>/^#{1,4}\s/.test(t);
   const isNote=t=>/^(※|＊|注[:：]|＞|>)/.test(t);
   const isImg=t=>/^!\[[^\]]*\]\(https?:\/\//.test(t);
+  const isTbl=t=>/^\|.+\|$/.test(t);
   while(i<lines.length){
     const t=lines[i].trim();
     if(!t){ i++; continue; }
@@ -349,7 +358,16 @@ function Markdown({text}){
       out.push(React.createElement('ul',{key:i,className:'mdul'},it.map((x,k)=>React.createElement('li',{key:k},mdInline(x))))); continue; }
     if(isNote(t)){ const it=[]; while(i<lines.length&&isNote(lines[i].trim())){ it.push(lines[i].trim().replace(/^[＞>]\s*/,'')); i++; }
       out.push(React.createElement('div',{key:i,className:'mdnote'},it.map((x,k)=>React.createElement('div',{key:k},mdInline(x))))); continue; }
-    const para=[]; while(i<lines.length){ const u=lines[i].trim(); if(!u||isH(u)||isNum(u)||isList(u)||isImg(u)||isNote(u)) break; para.push(u); i++; }
+    if(isTbl(t)){ const rows=[]; while(i<lines.length&&isTbl(lines[i].trim())){ rows.push(lines[i].trim()); i++; }
+      const parse=r=>r.replace(/^\|/,'').replace(/\|$/,'').split('|').map(c=>c.trim());
+      let cells=rows.map(parse), head=null;
+      if(cells.length>=2 && cells[1].every(c=>/^:?[-ー─]{2,}:?$/.test(c))){ head=cells[0]; cells=cells.slice(2); }
+      else if(cells.length>=2){ head=cells[0]; cells=cells.slice(1); }
+      out.push(React.createElement('table',{key:i,className:'mdtable'},
+        head&&React.createElement('thead',{key:'h'},React.createElement('tr',null,head.map((c,k)=>React.createElement('th',{key:k},mdInline(c))))),
+        React.createElement('tbody',{key:'b'},cells.map((r,ri)=>React.createElement('tr',{key:ri},r.map((c,k)=>React.createElement('td',{key:k},mdInline(c))))))
+      )); continue; }
+    const para=[]; while(i<lines.length){ const u=lines[i].trim(); if(!u||isH(u)||isNum(u)||isList(u)||isImg(u)||isNote(u)||isTbl(u)) break; para.push(u); i++; }
     out.push(React.createElement('p',{key:i,className:'mdp'},mdInline(para.join(' '))));
   }
   return React.createElement('div',null,out);
@@ -478,7 +496,7 @@ function insertImagesByPosition(genBody, srcBody){
 // 末尾の不完全な文を除去（見切れ防止）
 function trimToSentence(t){
   t=String(t||"").trim(); if(!t) return t;
-  if(/[。！？!?」』）)\]：:\-・>\n]$/.test(t)) return t;
+  if(/[。！？!?」』）)\]：:\-・>|\n]$/.test(t)) return t;   // | は表の行末
   const m=t.match(/^[\s\S]*[。！？!?」』）)\]]/);
   return (m && m[0].length>=Math.floor(t.length*0.4)) ? m[0] : t;
 }
@@ -778,7 +796,7 @@ function App(){
       // ② 詳細を後追いで生成して右ペインに追記（2段表示）。busyは解放済みなので待たせない
       if(art._detailLoading){ startDetTimer();
         (async()=>{ try{
-          let d=await callProxy("あなたはDECA for LINE（LIBERO）のサポート担当です。次の【ナレッジ記事】を主な根拠に、必要ならDECA for LINEの一般的な操作知識も補い、質問への具体的な手順・補足を“お客様向けの回答文”として書いて。まず【ナレッジ記事】の元の構成（章立て・手順の順序・前提条件）を正確に読み取り、人間が一読して理解できるよう『見出し→その配下に手順や箇条書き』の入れ子で論理的に整理する。元記事の意味を忠実に反映し、順序を崩したり別物にしない。\n【書式（厳守）】重要語は**太字**。見出しは最大4階層で使い分ける＝最上位の大見出し「# 」＞見出し「## 」＞小見出し「### 」＞細目「#### 」。内包関係は1段深い記号を使う（同列は同じレベル）。注意書き・補足・例外は行頭に「※ 」を付ける（注釈として別扱い）。『対象者：』『レポート：』のような分類ラベル（短く、コロンで終わる見出し的なもの）は箇条書きにせず必ず「### 」の小見出しにし、その配下の具体的な説明を箇条書き「- 」にして階層を作る（ラベルと説明を同列の箇条書きにしない）。手順は各ステップを改行して行頭に「1. 」「2. 」。箇条書きは各項目を改行して行頭に「- 」。複数の項目や手順を絶対に1行に詰め込まず、必ず改行する。見出しは「## 見出し名」のように記号と見出し文を必ず同じ行に書く（記号だけの行を作らない）。【最重要】セクション名・小見出し（例：「リッチメニューの作成」「画像のアップロードとタップ領域の設定」）は必ず「### 」で書き、絶対に番号付き(1. 2.)の項目にしない。番号付き(1. 2.)は実際の操作手順の文だけに使い、各セクションで1から振り直す。\n【画像（厳守）】ナレッジ記事に「![img](URL)」形式の画像がある場合、その画像が元記事で置かれていたのと同じ位置（対応する見出し・手順・説明の直後）に「![img](URL)」を単独行でそのまま挿入する。URLは一字も変えない。画像を末尾にまとめて並べない。元記事に無い画像URLを作らない。\n【内容（厳守）】『記事1/記事2』『ナレッジ記事』『ご提供いただいた』等のメタ表現や、『記載がありません/含まれておりません/触れられていません/ご案内できかねます』等の言い訳は一切書かない。挨拶・お礼・前置き・結論の重複も書かない。\n\n【質問】"+sqV+"\n\n【ナレッジ記事】\n"+detailCtxV);
+          let d=await callProxy("あなたはDECA for LINE（LIBERO）のサポート担当です。次の【ナレッジ記事】を主な根拠に、必要ならDECA for LINEの一般的な操作知識も補い、質問への具体的な手順・補足を“お客様向けの回答文”として書いて。まず【ナレッジ記事】の元の構成（章立て・手順の順序・前提条件）を正確に読み取り、人間が一読して理解できるよう『見出し→その配下に手順や箇条書き』の入れ子で論理的に整理する。元記事の意味を忠実に反映し、順序を崩したり別物にしない。\n【書式（厳守）】重要語は**太字**。見出しは最大4階層で使い分ける＝最上位の大見出し「# 」＞見出し「## 」＞小見出し「### 」＞細目「#### 」。内包関係は1段深い記号を使う（同列は同じレベル）。注意書き・補足・例外は行頭に「※ 」を付ける（注釈として別扱い）。『対象者：』『レポート：』のような分類ラベル（短く、コロンで終わる見出し的なもの）は箇条書きにせず必ず「### 」の小見出しにし、その配下の具体的な説明を箇条書き「- 」にして階層を作る（ラベルと説明を同列の箇条書きにしない）。手順は各ステップを改行して行頭に「1. 」「2. 」。箇条書きは各項目を改行して行頭に「- 」。複数の項目や手順を絶対に1行に詰め込まず、必ず改行する。見出しは「## 見出し名」のように記号と見出し文を必ず同じ行に書く（記号だけの行を作らない）。【最重要】セクション名・小見出し（例：「リッチメニューの作成」「画像のアップロードとタップ領域の設定」）は必ず「### 」で書き、絶対に番号付き(1. 2.)の項目にしない。番号付き(1. 2.)は実際の操作手順の文だけに使い、各セクションで1から振り直す。\n【画像（厳守）】ナレッジ記事に「![img](URL)」形式の画像がある場合、その画像が元記事で置かれていたのと同じ位置（対応する見出し・手順・説明の直後）に「![img](URL)」を単独行でそのまま挿入する。URLは一字も変えない。画像を末尾にまとめて並べない。元記事に無い画像URLを作らない。\n【表・リンク（厳守）】元記事に表形式のデータ（列見出しと値の組が並ぶもの。例：配信通数と単価、プラン比較）がある場合は、必ずMarkdownの表で出力する＝1行目「| 列名 | 列名 |」、2行目「| --- | --- |」、以降データ行（各行とも行頭と行末は|）。表を文章や箇条書きに展開しない。元記事の「[テキスト](URL)」形式のリンクは、そのままの形式・URLで本文の対応箇所に残す。\n【内容（厳守）】『記事1/記事2』『ナレッジ記事』『ご提供いただいた』等のメタ表現や、『記載がありません/含まれておりません/触れられていません/ご案内できかねます』等の言い訳は一切書かない。挨拶・お礼・前置き・結論の重複も書かない。\n\n【質問】"+sqV+"\n\n【ナレッジ記事】\n"+detailCtxV);
           let b=normalizeMd(cleanMeta(stripPolite(trimToSentence(String(d||"").replace(/^\s*要約[:：].*$/m,"").trim()))));
           // 詳細が要約と実質同一なら詳細テキストは出さない（重複回避）
           const nrm=s=>String(s||"").replace(/[\s　*#・\-0-9.「」（）()。、,：:]/g,"");
@@ -789,7 +807,7 @@ function App(){
           const lastLine=(b.split("\n").map(s=>s.trim()).filter(Boolean).pop())||"";
           if(b && (/^#{1,4}\s/.test(lastLine) || /(手順です。|以下の(通り|とおり)です。|次の(通り|とおり)です。|手順は以下|説明します。|ご紹介します。|[:：])$/.test(lastLine))){
             try{
-              const cont=await callProxy("あなたはDECA for LINE（LIBERO）のサポート担当です。以下は書きかけの回答です。この続きの本文だけを書いて完成させて。既に書いた内容の繰り返し・前置き・挨拶・締めの定型文は禁止。書式：重要語は**太字**、見出しは「## 」「### 」、手順は「1. 」、箇条書きは「- 」、注意書きは「※ 」。根拠は【ナレッジ記事】のみ。\n\n【質問】"+sqV+"\n\n【ナレッジ記事】\n"+String(detailCtxV).slice(0,2600)+"\n\n【書きかけの回答（この直後から続きを書く）】\n"+b.slice(-700));
+              const cont=await callProxy("あなたはDECA for LINE（LIBERO）のサポート担当です。以下は書きかけの回答です。この続きの本文だけを書いて完成させて。既に書いた内容の繰り返し・前置き・挨拶・締めの定型文は禁止。書式：重要語は**太字**、見出しは「## 」「### 」、手順は「1. 」、箇条書きは「- 」、注意書きは「※ 」、表データはMarkdown表（| 列 | 列 |と| --- | --- |）、リンクは「[テキスト](URL)」のまま。根拠は【ナレッジ記事】のみ。\n\n【質問】"+sqV+"\n\n【ナレッジ記事】\n"+String(detailCtxV).slice(0,2600)+"\n\n【書きかけの回答（この直後から続きを書く）】\n"+b.slice(-700));
               const cb=normalizeMd(cleanMeta(stripPolite(trimToSentence(String(cont||"").replace(/^\s*要約[:：].*$/m,"").trim()))));
               if(cb && cb.replace(/[\s　]/g,"").length>10 && nrm(cb)!==nrm(b)) b=b+"\n\n"+cb;
             }catch(e){}
