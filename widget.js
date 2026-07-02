@@ -11,7 +11,9 @@
   var src = (cs && cs.getAttribute('data-src')) || '';
   var endpoint = (cs && cs.getAttribute('data-endpoint')) || '';
   if (!src) { console.error('[DECA widget] data-src が未設定です'); return; }
-  var url = src + (src.indexOf('?') >= 0 ? '&' : '?') + 'embed=1'
+  var d0 = new Date();  // 日次キャッシュバスター（CDNのブラウザキャッシュ7日を最大1日に短縮）
+  var ver = d0.getFullYear() * 10000 + (d0.getMonth() + 1) * 100 + d0.getDate();
+  var url = src + (src.indexOf('?') >= 0 ? '&' : '?') + 'embed=1' + '&v=' + ver
           + (endpoint ? '&endpoint=' + encodeURIComponent(endpoint) : '');
 
   function mount() {
