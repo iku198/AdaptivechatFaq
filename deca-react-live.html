@@ -771,10 +771,12 @@ function App(){
       }
       // 要約/詳細の確定（2段：詳細は空で開始し後追い）
       let lead, body;
-      if(twoStage){ lead=trimToSentence(ans).replace(/^[\s　]*[・･•\-\*]+[\s　]*/,''); body=""; }
+      // 行頭の箇条書き記号を除去（**太字**の開始記号は食べない＝ペアずれ防止）
+      const stripBullet=s=>{ s=String(s||"").trim(); return /^\*\*[^*]+\*\*/.test(s)?s:s.replace(/^[\s　]*[・･•\-\*]+[\s　]*/,''); };
+      if(twoStage){ lead=stripBullet(trimToSentence(ans)); body=""; }
       else{
         const mm=String(ans).match(/^\s*要約[:：]\s*(.+)$/m);
-        lead=(mm?trimToSentence(mm[1].trim()):deriveLead(ans)).replace(/^[\s　]*[・･•\-\*]+[\s　]*/,'');
+        lead=stripBullet(mm?trimToSentence(mm[1].trim()):deriveLead(ans));
         body=trimToSentence(String(ans).replace(/^\s*要約[:：].*$/m,"").trim()) || lead;
       }
       // 非回答（見当たらない/公式ヘルプで確認系）は found=false にして拡張せずチャット内で完結
