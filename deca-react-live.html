@@ -428,7 +428,16 @@ function insertImagesByPosition(genBody, srcBody){
   try{
     const src=String(srcBody||""); const gen=String(genBody||"");
     const re=/!\[img\]\(([^)]+)\)/g; const items=[]; let m, last=0;
-    while((m=re.exec(src))){ const before=src.slice(last,m.index).replace(/!\[img\]\([^)]*\)/g,"").replace(/\s+/g," ").trim(); items.push({url:m[1], anchor:before.slice(-70), ctx:before.slice(-170)}); last=re.lastIndex; }
+    while((m=re.exec(src))){
+      const rawBefore=src.slice(last,m.index).replace(/!\[img\]\([^)]*\)/g,"");
+      const flat=rawBefore.replace(/\s+/g," ").trim();
+      // 表示用の文脈＝直前の「意味のある行」だけ（区切り線・目次的な断片は除外）
+      const lns=rawBefore.split(/\n/).map(s=>s.trim().replace(/[‐\-—―─ー_=＝*＊]{3,}/g," ").replace(/\s+/g," ").trim()).filter(s=>s.replace(/[・･\s]/g,"").length>=2);
+      let cx=lns.length?lns[lns.length-1]:"";
+      if(cx.length<8 && lns.length>1) cx=lns[lns.length-2]+" "+cx;
+      items.push({url:m[1], anchor:flat.slice(-70), ctx:cx.slice(-160)});
+      last=re.lastIndex;
+    }
     if(!items.length) return gen;
     const clean=s=>String(s||"").replace(/[\s　#*・\-0-9０-９.．「」『』（）()。、,，：:！!？?＞>※]/g,"");
     const lines=gen.split("\n"); let from=0; const missing=[];
@@ -451,8 +460,7 @@ function insertImagesByPosition(genBody, srcBody){
       // 画像を裸で連続させず、元ナレッジの直前の文を添えて「テキスト→画像」の元の順序で出力
       const tail=missing.map(x=>{
         let c=String(x.ctx||"").trim();
-        const cut=c.search(/[。！？]/); if(cut>=0 && cut<c.length-2) c=c.slice(cut+1).trim();  // 先頭の欠けた文を除去
-        if(c && clean(out).indexOf(clean(c).slice(0,24))>=0) c="";                             // 生成本文に既にある文は重複させない
+        if(c && clean(out).indexOf(clean(c).slice(0,24))>=0) c="";   // 生成本文に既にある文は重複させない
         return (c?c+"\n\n":"")+"![img]("+x.url+")";
       }).join("\n\n");
       out=(out?out+"\n\n":"")+tail;
