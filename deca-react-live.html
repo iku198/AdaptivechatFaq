@@ -299,7 +299,7 @@ function searchWeb(q){
 // 実ロゴ（PNG/SVG/データURI）があればここに入れると差し替わる。空ならワードマークSVG。
 const LOGO_SRC = "DECA_x.png";
 function Logo(){
-  if(LOGO_SRC) return <img src={LOGO_SRC} alt="DECA" style={{width:'100%',height:'100%',objectFit:'contain',display:'block',background:'#fff'}}/>;
+  if(LOGO_SRC) return <img src={LOGO_SRC} alt="DECA" style={{width:'100%',height:'100%',objectFit:'contain',display:'block',background:'transparent'}}/>;
   // DECAロゴ（積層X）をSVGで再現。実ロゴは LOGO_SRC に差し替え可
   return (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
