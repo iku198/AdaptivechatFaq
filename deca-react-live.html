@@ -76,7 +76,35 @@
   .typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
   @keyframes bl{0%,60%,100%{opacity:.3}30%{opacity:1}}
 
-  .composer{border-top:1px solid #ddd3f0;padding:10px 12px;display:flex;gap:9px;align-items:flex-end;background:#f7f4fd}
+  .composer{border-top:1px solid #ddd3f0;padding:10px 12px;display:flex;gap:9px;align-items:flex-end;background:#f7f4fd;position:relative}
+  /* 入力オートコンプリート */
+  .sugBox{position:absolute;bottom:calc(100% + 4px);left:10px;right:58px;background:#fff;border:1.5px solid #cdbff2;box-shadow:0 -8px 26px rgba(58,32,140,.16);z-index:6;overflow:hidden}
+  .sugLbl{font-size:10.5px;color:#9a82d6;font-weight:800;padding:8px 14px 4px}
+  .sugItem{padding:9px 14px;font-size:13px;font-weight:600;color:#43289d;cursor:pointer;border-bottom:1px solid #f0ebfa;line-height:1.5}
+  .sugItem:last-child{border-bottom:none}
+  .sugItem b{color:var(--violet)}
+  .sugItem.sel{background:#f1ebfc}
+  /* ステップガイド（ウィザード） */
+  .wizToggle{margin-left:10px;border:1.5px solid var(--violet);background:#fff;color:var(--violet);font-size:11.5px;font-weight:800;padding:4px 11px;cursor:pointer;vertical-align:middle}
+  .wizToggle:hover{background:var(--violet);color:#fff}
+  .wizard{border:1.5px solid #d9cdf2;background:#faf8ff;padding:16px 18px 14px;margin:4px 0 20px}
+  .wizHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px}
+  .wizSec{font-size:12.5px;font-weight:800;color:#6a4bd0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .wizPos{flex:0 0 auto;font-size:12px;font-weight:800;color:#9a82d6}
+  .wizCard{background:#fff;border:1px solid #e3daf5;padding:16px 18px;box-shadow:0 4px 14px rgba(74,40,180,.08)}
+  .wizStep{display:flex;gap:10px;align-items:flex-start;font-size:15px;line-height:1.9;color:#3a2f66}
+  .wizStep input{width:17px;height:17px;margin-top:6px;accent-color:#4a28b4;flex:0 0 auto;cursor:pointer}
+  .wizStep .wn{flex:0 0 auto;width:26px;height:26px;background:var(--violet);color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:3px}
+  .wizStep.done .wtx{text-decoration:line-through;opacity:.55}
+  .wizImg{max-width:100%;height:auto;display:block;margin:12px 0 4px;border:1px solid #eaeaf0}
+  .wizNav{display:flex;align-items:center;justify-content:space-between;margin-top:12px;gap:10px}
+  .wizNav button{border:1.5px solid var(--violet);background:#fff;color:var(--violet);font-size:13px;font-weight:800;padding:8px 16px;cursor:pointer}
+  .wizNav button:hover:not(:disabled){background:var(--violet);color:#fff}
+  .wizNav button:disabled{opacity:.35;cursor:default}
+  .wizDots{display:flex;gap:6px;flex-wrap:wrap}
+  .wizDots i{width:9px;height:9px;border-radius:50% !important;background:#ddd2f2;cursor:pointer}
+  .wizDots i.done{background:#8a76c9}
+  .wizDots i.on{background:var(--violet);transform:scale(1.3)}
   .composer textarea{flex:1;border:1.5px solid #ded5f0;border-radius:18px;padding:10px 14px;font-size:14px;font-family:inherit;resize:none;max-height:90px;line-height:1.4}
   .composer textarea:focus{outline:none;border-color:var(--violet)}
   .composer .snd{width:40px;height:40px;border-radius:50%;border:none;background:var(--violet);color:#fff;font-size:17px;cursor:pointer;flex:0 0 auto}
@@ -291,6 +319,72 @@ function toTrouble(title){
   // 動詞で終わる手順系 →「〜方法がわからない」
   if(/(る|す|う|く|つ|ぶ|む|ぐ)$/.test(t)) return t+"方法がわからない";
   return t+"について知りたい";
+}
+
+// ===== 入力オートコンプリート：ひらがな→カタカナ正規化＋記事タイトル由来の候補プール =====
+const kat=s=>String(s||"").toLowerCase().replace(/[ぁ-ん]/g,c=>String.fromCharCode(c.charCodeAt(0)+0x60));
+const SUGGESTIONS=(function(){
+  try{
+    const out=[],seen={};
+    STARTERS.forEach(s=>{ if(!seen[s]){seen[s]=1;out.push(s);} });
+    ((typeof window!=="undefined"&&window.__DECA_ARTICLES)||[]).forEach(a=>{ const t=toTrouble(a.title); if(t&&t.length>=6&&!seen[t]){seen[t]=1;out.push(t);} });
+    return out;
+  }catch(e){ return STARTERS.slice(); }
+})();
+
+// ===== ステップガイド：詳細本文から「番号手順＋画像＋注意書き」を抽出 =====
+function parseSteps(body){
+  const lines=String(body||"").split(/\n/); const steps=[]; let curH="";
+  for(let i=0;i<lines.length;i++){
+    const t=lines[i].trim(); if(!t) continue;
+    if(/^#{1,4}\s/.test(t)){ curH=t.replace(/^#{1,4}\s+/,"").replace(/\*\*/g,"").replace(/[：:]\s*$/,""); continue; }
+    const m=t.match(/^(\d{1,2})[\.\)]\s+(.+)/);
+    if(m){ steps.push({sec:curH,text:m[2],imgs:[],notes:[]}); continue; }
+    if(!steps.length) continue;
+    const im=t.match(/^!\[[^\]]*\]\((https?:\/\/[^)\s]+)\)/);
+    if(im){ steps[steps.length-1].imgs.push(im[1]); continue; }
+    if(/^※/.test(t)){ steps[steps.length-1].notes.push(t); continue; }
+  }
+  return steps;
+}
+function StepGuide({steps}){
+  const [gi,setGi]=useState(0);
+  const [done,setDone]=useState({});
+  const st=steps[Math.min(gi,steps.length-1)];
+  const doneCnt=Object.keys(done).filter(k=>done[k]).length;
+  const next=()=>{ setDone(p=>Object.assign({},p,{[gi]:true})); if(gi<steps.length-1) setGi(gi+1); };
+  return (
+    <div className="wizard">
+      <div className="wizHead"><span className="wizSec">{st.sec||"手順"}</span><span className="wizPos">手順 {gi+1} / {steps.length}　✔ {doneCnt}/{steps.length} 完了</span></div>
+      <div className="wizCard">
+        <div className={"wizStep"+(done[gi]?" done":"")}>
+          <input type="checkbox" checked={!!done[gi]} onChange={()=>setDone(p=>Object.assign({},p,{[gi]:!p[gi]}))}/>
+          <span className="wn">{gi+1}</span>
+          <span className="wtx">{mdInline(st.text)}</span>
+        </div>
+        {st.imgs.map((u,k)=><img key={k} className="wizImg" src={u} alt="" loading="lazy"/>)}
+        {st.notes.map((n,k)=><div key={k} className="mdnote">{mdInline(n)}</div>)}
+      </div>
+      <div className="wizNav">
+        <button disabled={gi===0} onClick={()=>setGi(gi-1)}>← 前へ</button>
+        <div className="wizDots">{steps.map((_,k)=><i key={k} className={k===gi?"on":(done[k]?"done":"")} onClick={()=>setGi(k)}></i>)}</div>
+        {gi<steps.length-1
+          ? <button onClick={next}>次へ →</button>
+          : <button onClick={()=>setDone(p=>Object.assign({},p,{[gi]:true}))}>✔ 完了</button>}
+      </div>
+    </div>
+  );
+}
+// 詳細エリア：通常表示⇄ステップガイドの切替（記事が替わるとkeyでリセット）
+function DetailView({art,live}){
+  const [guide,setGuide]=useState(false);
+  const steps=parseSteps(art.body);
+  return (
+    <React.Fragment>
+      <div className="detlbl">詳細{steps.length>=2 && <button className="wizToggle" onClick={()=>setGuide(!guide)}>{guide?"📄 通常表示に戻る":"🧭 ステップガイドで見る"}</button>}</div>
+      {(guide&&steps.length>=2) ? <StepGuide steps={steps}/> : (live?<Typewriter text={art.body}/>:<Markdown text={art.body}/>)}
+    </React.Fragment>
+  );
 }
 
 // 回答テキストをFAQ記事（タイトル/本文/手順/出典）にパース
@@ -551,6 +645,8 @@ function App(){
   const [activeArt,setActiveArt] = useState(null);   // 上部タブで選択中のFAQ(メッセージid)
   const [closedTabs,setClosedTabs] = useState([]);   // 手動で閉じたFAQタブ(id)
   const closeTab = (id)=>{ setClosedTabs(p=>p.indexOf(id)<0?p.concat([id]):p); setActiveArt(a=>a===id?null:a); };
+  const [sugSel,setSugSel] = useState(-1);     // サジェストの選択位置
+  const [sugHide,setSugHide] = useState(false);// Escで一時的に閉じる
   const [loading,setLoading] = useState("");   // 動的ローディング実況テキスト
   const [elapsed,setElapsed] = useState(0);    // ローディングのリアルタイム経過秒
   const [detElapsed,setDetElapsed] = useState(0);  // 詳細生成のリアルタイム経過秒
@@ -887,6 +983,12 @@ function App(){
   if(!latestArt && artList.length){ const last=artList[artList.length-1]; latestArt=last.art; latestMsgId=last.id; }
   const live = !activeArt;   // 最新(生成中)表示時のみタイプライター。過去タブ閲覧時は即表示
 
+  // 入力オートコンプリート候補（通信ゼロ：ローカル記事インデックス115件＋定番から）
+  const sugQ=kat(input.trim());
+  const sugs=(!busy && !sugHide && sugQ.length>=2)
+    ? SUGGESTIONS.map(s=>({s,i:kat(s).indexOf(sugQ)})).filter(x=>x.i>=0).sort((a,b)=>a.i-b.i).slice(0,5)
+    : [];
+
   return (
     <React.Fragment>
       {expanded && <div className="backdrop" onClick={()=>setExpanded(false)}></div>}
@@ -933,9 +1035,27 @@ function App(){
             </div>
             {err && <div className="err">接続エラー: {err}</div>}
             <form className="composer" onSubmit={e=>{e.preventDefault();send(input);}}>
+              {sugs.length>0 &&
+                <div className="sugBox">
+                  <div className="sugLbl">💡 もしかして（↑↓で選択・Enterで送信）</div>
+                  {sugs.map((x,i)=>
+                    <div key={i} className={"sugItem"+(i===sugSel?" sel":"")}
+                      onMouseDown={e=>{e.preventDefault(); setInput(""); setSugSel(-1); askTopic(x.s);}}
+                      onMouseEnter={()=>setSugSel(i)}>
+                      {x.i>=0 ? [x.s.slice(0,x.i), <b key="m">{x.s.slice(x.i,x.i+sugQ.length)}</b>, x.s.slice(x.i+sugQ.length)] : x.s}
+                    </div>)}
+                </div>}
               <textarea rows="1" value={input} placeholder={busy?"応答中です…少々お待ちください":"メッセージを入力（Shift + Enter で送信）"}
-                onChange={e=>setInput(e.target.value)}
-                onKeyDown={e=>{if(e.key==='Enter'&&e.shiftKey){e.preventDefault();if(!busy)send(input);}}}/>
+                onChange={e=>{setInput(e.target.value); setSugSel(-1); setSugHide(false);}}
+                onKeyDown={e=>{
+                  if(sugs.length){
+                    if(e.key==='ArrowDown'){e.preventDefault();setSugSel(p=>(p+1)%sugs.length);return;}
+                    if(e.key==='ArrowUp'){e.preventDefault();setSugSel(p=>(p<=0?sugs.length-1:p-1));return;}
+                    if(e.key==='Escape'){setSugHide(true);setSugSel(-1);return;}
+                    if(e.key==='Enter'&&!e.shiftKey&&sugSel>=0){e.preventDefault();const t=sugs[sugSel].s;setInput('');setSugSel(-1);askTopic(t);return;}
+                  }
+                  if(e.key==='Enter'&&e.shiftKey){e.preventDefault();if(!busy)send(input);}
+                }}/>
               <button className="snd" type="submit" disabled={!input.trim()||busy}>↑</button>
             </form>
           </div>
@@ -956,7 +1076,7 @@ function App(){
                     {latestArt.lead && <div className="lead"><span className="leadlbl">💡 回答</span><div className="leadtx">{live ? <Typewriter text={latestArt.lead}/> : <Markdown text={latestArt.lead}/>}</div></div>}
                     {latestArt._detailLoading
                       ? <React.Fragment><div className="detlbl">詳細</div><div className="detloading"><span className="dspin"></span>詳細を作成しています…（約10秒）<span className="elapsed">　経過 {detElapsed}秒</span></div></React.Fragment>
-                      : (latestArt.body && latestArt.body!==latestArt.lead && <React.Fragment><div className="detlbl">詳細</div>{live ? <Typewriter text={latestArt.body}/> : <Markdown text={latestArt.body}/>}</React.Fragment>)}
+                      : (latestArt.body && latestArt.body!==latestArt.lead && <DetailView key={latestMsgId} art={latestArt} live={live}/>)}
                     {latestArt.sources && latestArt.sources.length>0 &&
                       <div className="srcbox">
                         <div className="srchd">📚 この回答に利用した情報（関連度）</div>
